@@ -22,6 +22,13 @@ export default function Home() {
           >
             速報・ランキングを見る
           </Link>
+
+          <Link
+            href="/calling"
+            className="block w-full py-4 px-6 bg-white border-2 border-[#CD2C58] text-[#CD2C58] font-bold text-lg rounded-lg hover:bg-[#FFE6D4] transition-colors text-center shadow-sm"
+          >
+            選手呼出管理へ
+          </Link>
         </div>
 
         <div className="bg-gray-50 p-4 text-center text-gray-500 text-sm">
