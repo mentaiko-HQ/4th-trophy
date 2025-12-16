@@ -5,16 +5,13 @@ import ScoreInputClient, { PlayerData } from './components/ScoreInputClient';
 export default async function ScoreInputPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tachi?: string; tab?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const supabase = await createClient();
 
   const params = await searchParams;
-  const targetPage = params.tachi ? Number(params.tachi) : 1;
   // 現在のタブを取得（デフォルトは am1）
   const currentTab = params.tab || 'am1';
-
-  const ITEMS_PER_PAGE = 5;
 
   // Supabaseからデータ取得
   const { data: rawData, error } = await supabase.from('entries').select(`
@@ -23,6 +20,12 @@ export default async function ScoreInputPage({
       order_am1,
       order_am2,
       order_pm1,
+      score_am1,
+      score_am2,
+      score_pm1,
+      status_am1,
+      status_am2,
+      status_pm1,
       participants (
         name,
         teams (
@@ -63,6 +66,13 @@ export default async function ScoreInputPage({
           order_am1: entry.order_am1 ?? null,
           order_am2: entry.order_am2 ?? null,
           order_pm1: entry.order_pm1 ?? null,
+          score_am1: entry.score_am1 ?? null,
+          score_am2: entry.score_am2 ?? null,
+          score_pm1: entry.score_pm1 ?? null,
+          // ステータス情報の追加（デフォルトは waiting）
+          status_am1: entry.status_am1 ?? 'waiting',
+          status_am2: entry.status_am2 ?? 'waiting',
+          status_pm1: entry.status_pm1 ?? 'waiting',
         };
       })
     : [];
@@ -74,29 +84,10 @@ export default async function ScoreInputPage({
 
   // 3. 決定したキーで昇順ソート
   allPlayers.sort((a, b) => {
-    // nullの場合は末尾(999999)に移動
     const valA = a[sortKey] !== null ? Number(a[sortKey]) : 999999;
     const valB = b[sortKey] !== null ? Number(b[sortKey]) : 999999;
     return valA - valB;
   });
-
-  // 4. ページネーション処理
-  const from = (targetPage - 1) * ITEMS_PER_PAGE;
-  const to = from + ITEMS_PER_PAGE;
-
-  const paginatedPlayers = allPlayers.slice(from, to);
-
-  if (paginatedPlayers.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-100 py-10 px-4">
-        <div className="max-w-2xl mx-auto text-center p-10 bg-white rounded shadow">
-          <h2 className="text-xl font-bold mb-4">データが見つかりません</h2>
-          <p>対象の登録選手がいません。</p>
-          <p className="text-sm text-gray-500 mt-2">（基準: {sortKey}）</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 sm:py-10 px-2 sm:px-4">
@@ -104,8 +95,8 @@ export default async function ScoreInputPage({
         予選 成績入力
       </h1>
 
-      {/* 現在のタブ情報をクライアントに渡す */}
-      <ScoreInputClient players={paginatedPlayers} currentTab={currentTab} />
+      {/* 現在のタブと全選手データを渡す */}
+      <ScoreInputClient players={allPlayers} currentTab={currentTab} />
     </div>
   );
 }
