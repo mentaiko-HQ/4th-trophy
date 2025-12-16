@@ -5,17 +5,18 @@ import ScoreInputClient, { PlayerData } from './components/ScoreInputClient';
 export default async function ScoreInputPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tachi?: string }>;
+  searchParams: Promise<{ tachi?: string; tab?: string }>; // tabパラメータを追加
 }) {
   const supabase = await createClient();
 
   const params = await searchParams;
-  // URLパラメータ 'tachi' をページ番号として扱います
   const targetPage = params.tachi ? Number(params.tachi) : 1;
+  // 現在のタブを取得（デフォルトは am1）
+  const currentTab = params.tab || 'am1';
+
   const ITEMS_PER_PAGE = 5;
 
   // Supabaseからデータ取得
-  // 新テーブル entries から、participants と teams を結合して取得
   const { data: rawData, error } = await supabase.from('entries').select(`
       id,
       bib_number,
@@ -55,11 +56,10 @@ export default async function ScoreInputPage({
   const allPlayers = rawData
     ? rawData.map((entry: any) => {
         return {
-          id: entry.id, // entriesテーブルのID
+          id: entry.id,
           bib_number: entry.bib_number,
           player_name: entry.participants?.name ?? '不明',
           team_name: entry.participants?.teams?.name ?? '不明',
-          // 新カラム名に対応
           order_am1: entry.order_am1 ?? null,
           order_am2: entry.order_am2 ?? null,
           order_pm1: entry.order_pm1 ?? null,
@@ -67,14 +67,20 @@ export default async function ScoreInputPage({
       })
     : [];
 
-  // 2. order_am1 (午前1立順) の昇順でソート
+  // 2. 現在のタブに応じてソートキーを決定
+  let sortKey: 'order_am1' | 'order_am2' | 'order_pm1' = 'order_am1';
+  if (currentTab === 'am2') sortKey = 'order_am2';
+  if (currentTab === 'pm1') sortKey = 'order_pm1';
+
+  // 3. 決定したキーで昇順ソート
   allPlayers.sort((a, b) => {
-    const valA = a.order_am1 !== null ? Number(a.order_am1) : 999999;
-    const valB = b.order_am1 !== null ? Number(b.order_am1) : 999999;
+    // nullの場合は末尾(999999)に移動
+    const valA = a[sortKey] !== null ? Number(a[sortKey]) : 999999;
+    const valB = b[sortKey] !== null ? Number(b[sortKey]) : 999999;
     return valA - valB;
   });
 
-  // 3. ページネーション処理
+  // 4. ページネーション処理
   const from = (targetPage - 1) * ITEMS_PER_PAGE;
   const to = from + ITEMS_PER_PAGE;
 
@@ -86,6 +92,7 @@ export default async function ScoreInputPage({
         <div className="max-w-2xl mx-auto text-center p-10 bg-white rounded shadow">
           <h2 className="text-xl font-bold mb-4">データが見つかりません</h2>
           <p>対象の登録選手がいません。</p>
+          <p className="text-sm text-gray-500 mt-2">（基準: {sortKey}）</p>
         </div>
       </div>
     );
@@ -97,7 +104,8 @@ export default async function ScoreInputPage({
         予選 成績入力
       </h1>
 
-      <ScoreInputClient players={paginatedPlayers} />
+      {/* 現在のタブ情報をクライアントに渡す */}
+      <ScoreInputClient players={paginatedPlayers} currentTab={currentTab} />
     </div>
   );
 }

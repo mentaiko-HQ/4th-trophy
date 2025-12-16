@@ -1,21 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation'; // ルーターをインポート
 import { createClient } from '@/utils/supabase/client';
 
-// 型定義を新しいテーブル構造（entries）に合わせて更新
 export type PlayerData = {
-  id: string; // entriesテーブルのID
+  id: string;
   team_name: string;
   player_name: string;
   bib_number: string | number;
-  order_am1: number | null; // tachi_1 -> order_am1
-  order_am2: number | null; // tachi_2 -> order_am2
-  order_pm1: number | null; // tachi_3 -> order_pm1
+  order_am1: number | null;
+  order_am2: number | null;
+  order_pm1: number | null;
 };
 
 type Props = {
   players: PlayerData[];
+  currentTab: string; // 親から現在のタブを受け取る
 };
 
 const BatchScoreForm = ({
@@ -44,7 +45,6 @@ const BatchScoreForm = ({
     try {
       const supabase = createClient();
 
-      // 更新対象のカラム名を決定
       let targetColumn = '';
       if (label === '午前1') targetColumn = 'score_am1';
       else if (label === '午前2') targetColumn = 'score_am2';
@@ -52,13 +52,11 @@ const BatchScoreForm = ({
 
       if (!targetColumn) throw new Error('保存先のカラムが特定できません');
 
-      // 一括更新処理（1件ずつUPDATE）
       const updates = Object.entries(scores).map(async ([id, score]) => {
         const { error } = await supabase
           .from('entries')
           .update({ [targetColumn]: score })
           .eq('id', id);
-
         if (error) throw error;
       });
 
@@ -77,20 +75,20 @@ const BatchScoreForm = ({
   const isAllSelected = Object.keys(scores).length === players.length;
 
   return (
-    <div className="p-4 sm:p-6 bg-white border border-gray-200 rounded-b-lg shadow-sm animate-fade-in">
-      <div className="flex justify-between items-center mb-6 border-b pb-4">
+    <div className="p-4 sm:p-6 bg-gray-50 border border-gray-200 rounded-b-lg shadow-inner animate-fade-in">
+      <div className="flex justify-between items-center mb-6 pb-2 border-b border-gray-200">
         <h3 className="text-lg font-bold text-gray-800 border-l-4 border-blue-500 pl-3">
           {label} 一括入力
         </h3>
-        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+        <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm border border-gray-100">
           範囲: 0 〜 {maxScore} 中
         </span>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="space-y-4">
+        {/* カード型レイアウト: グリッドで配置 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-24">
           {players.map((player) => {
-            // タブに応じた立順番号とラベルの決定
             let orderNumber: number | null = null;
             let orderLabel = '立順';
 
@@ -108,131 +106,157 @@ const BatchScoreForm = ({
             return (
               <div
                 key={player.id}
-                className="flex flex-col sm:flex-row sm:items-center bg-gray-50 p-3 rounded-lg border border-gray-100"
+                className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
               >
-                <div className="sm:w-1/3 mb-3 sm:mb-0 border-l-4 border-gray-300 pl-3">
-                  {/* 立順と通し番号の表示 */}
-                  <div className="mb-1">
-                    <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded mr-2 inline-block">
+                {/* 完了状態の視覚的フィードバック（オプション） */}
+                {scores[player.id] !== undefined && (
+                  <div className="absolute top-0 right-0 w-3 h-3 bg-blue-500 rounded-bl-lg"></div>
+                )}
+
+                {/* 選手情報ヘッダー */}
+                <div className="flex justify-between items-start mb-4 pb-3 border-b border-gray-100">
+                  {/* 左側：立順・ゼッケン */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md w-fit">
                       {orderLabel}:{' '}
-                      <span className="text-sm">{orderNumber ?? '-'}</span>
+                      <span className="text-sm ml-1">{orderNumber ?? '-'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md w-fit border border-gray-100">
+                      ID: {player.bib_number}
                     </span>
                   </div>
-
-                  {/* 選手ID（ゼッケン）の表示 */}
-                  <div className="mb-2">
-                    <span className="text-xs font-bold text-gray-600 bg-gray-200 px-2 py-1 rounded inline-block">
-                      選手ID: {player.bib_number}
-                    </span>
+                  {/* 右側（メイン）：選手名・チーム名 */}
+                  <div className="text-right flex-1 pl-2">
+                    <p className="text-xs text-gray-500 font-bold mb-0.5 truncate">
+                      {player.team_name}
+                    </p>
+                    <p className="text-lg font-bold text-gray-800 leading-tight truncate">
+                      {player.player_name}
+                    </p>
                   </div>
-
-                  <p className="text-xs text-gray-500 font-bold">
-                    {player.team_name}
-                  </p>
-                  <p className="text-base font-bold text-gray-800">
-                    {player.player_name}
-                  </p>
                 </div>
 
-                <div className="sm:w-2/3 flex justify-start sm:justify-end gap-2 flex-wrap">
-                  {Array.from({ length: maxScore + 1 }).map((_, score) => {
-                    const isSelected = scores[player.id] === score;
-                    return (
-                      <button
-                        key={score}
-                        type="button"
-                        onClick={() => handleScoreSelect(player.id, score)}
-                        className={`
-                          w-12 h-10 sm:w-14 sm:h-12 rounded font-bold text-lg transition-all
+                {/* ボタンエリア */}
+                <div>
+                  <div className="flex justify-center gap-3 flex-wrap">
+                    {Array.from({ length: maxScore + 1 }).map((_, score) => {
+                      const isSelected = scores[player.id] === score;
+                      return (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => handleScoreSelect(player.id, score)}
+                          className={`
+                          w-12 h-12 rounded-xl font-bold text-xl transition-all duration-200 flex items-center justify-center
                           ${
                             isSelected
-                              ? 'bg-blue-600 text-white shadow-md scale-105 ring-2 ring-blue-300'
-                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-blue-50'
+                              ? 'bg-blue-600 text-white shadow-lg scale-110 ring-2 ring-blue-300 transform -translate-y-1'
+                              : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                           }
                         `}
-                      >
-                        {score}
-                      </button>
-                    );
-                  })}
+                        >
+                          {score}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-gray-100 text-center sticky bottom-0 bg-white/95 backdrop-blur py-4 -mb-4 sm:static sm:bg-transparent sm:py-0">
-          <button
-            type="submit"
-            disabled={!isAllSelected || isSubmitting}
-            className={`
-              w-full sm:w-1/2 px-6 py-4 rounded-lg font-bold text-lg shadow-md transition-all
-              ${
-                isAllSelected && !isSubmitting
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }
-            `}
-          >
-            {isSubmitting
-              ? '保存中...'
-              : isAllSelected
-              ? 'この内容で保存する'
-              : `未入力の選手がいます (${Object.keys(scores).length}/${
-                  players.length
-                })`}
-          </button>
+        {/* 固定フッターの保存ボタン */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-200 p-4 shadow-lg z-50">
+          <div className="max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-sm font-bold text-gray-500">
+              入力状況:{' '}
+              <span
+                className={isAllSelected ? 'text-blue-600' : 'text-gray-800'}
+              >
+                {Object.keys(scores).length}
+              </span>{' '}
+              / {players.length} 人
+            </span>
+            <button
+              type="submit"
+              disabled={!isAllSelected || isSubmitting}
+              className={`
+                w-full sm:w-auto px-8 py-3 rounded-lg font-bold text-lg shadow-md transition-all
+                ${
+                  isAllSelected && !isSubmitting
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }
+                `}
+            >
+              {isSubmitting
+                ? '保存中...'
+                : isAllSelected
+                ? 'この内容で保存する'
+                : '未入力の選手がいます'}
+            </button>
+          </div>
         </div>
       </form>
     </div>
   );
 };
 
-export default function ScoreInputClient({ players }: Props) {
-  const [activeTab, setActiveTab] = useState<'am1' | 'am2' | 'pm1'>('am1');
+export default function ScoreInputClient({ players, currentTab }: Props) {
+  const router = useRouter();
+
+  // タブ切り替え時にURLパラメータを更新してページ遷移
+  const handleTabChange = (tab: string) => {
+    // ページ遷移してサーバー側でソートをやり直させる
+    // ページ番号(tachi)はリセットして1ページ目に戻すのが安全
+    router.push(`/input?tab=${tab}`);
+  };
 
   const getTabClass = (tabName: string) => {
     const baseClass =
       'flex-1 py-4 text-center font-bold text-sm sm:text-base transition-all duration-200 border-b-2 outline-none';
-    const activeClass = 'border-blue-600 text-blue-600 bg-white';
+    const activeClass =
+      'border-blue-600 text-blue-600 bg-white shadow-sm z-10 relative';
     const inactiveClass =
       'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50';
     return `${baseClass} ${
-      activeTab === tabName ? activeClass : inactiveClass
+      currentTab === tabName ? activeClass : inactiveClass
     }`;
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex bg-gray-200 rounded-t-lg overflow-hidden border-b border-gray-300">
+    <div className="max-w-2xl mx-auto pb-20">
+      {' '}
+      {/* フッター分の余白を追加 */}
+      <div className="flex bg-gray-100 p-1 rounded-t-xl overflow-hidden border-b border-gray-200">
         <button
-          onClick={() => setActiveTab('am1')}
-          className={getTabClass('am1')}
+          onClick={() => handleTabChange('am1')}
+          className={`rounded-t-lg ${getTabClass('am1')}`}
         >
           午前1
         </button>
         <button
-          onClick={() => setActiveTab('am2')}
-          className={getTabClass('am2')}
+          onClick={() => handleTabChange('am2')}
+          className={`rounded-t-lg ${getTabClass('am2')}`}
         >
           午前2
         </button>
         <button
-          onClick={() => setActiveTab('pm1')}
-          className={getTabClass('pm1')}
+          onClick={() => handleTabChange('pm1')}
+          className={`rounded-t-lg ${getTabClass('pm1')}`}
         >
           午後1
         </button>
       </div>
-
       <div className="bg-white rounded-b-xl shadow-xl">
-        {activeTab === 'am1' && (
+        {currentTab === 'am1' && (
           <BatchScoreForm label="午前1" maxScore={2} players={players} />
         )}
-        {activeTab === 'am2' && (
+        {currentTab === 'am2' && (
           <BatchScoreForm label="午前2" maxScore={2} players={players} />
         )}
-        {activeTab === 'pm1' && (
+        {currentTab === 'pm1' && (
           <BatchScoreForm label="午後1" maxScore={4} players={players} />
         )}
       </div>
