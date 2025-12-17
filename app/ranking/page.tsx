@@ -1,8 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import ScoreList, { PlayerData } from './components/ScoreList';
-import type { Metadata } from 'next'; // 追加
+import type { Metadata } from 'next';
 
-// タイトル設定を追加
 export const metadata: Metadata = {
   title: '成績閲覧',
 };
@@ -10,8 +9,6 @@ export const metadata: Metadata = {
 export default async function RankingPage() {
   const supabase = await createClient();
 
-  // 修正1: 順位計算のために、まず「合計スコア順（降順）」で確実に並べ替えます。
-  // 同点内の並び順として、DB上の順位があればそれを考慮し、なければID順などで安定させます。
   const { data: entries, error } = await supabase
     .from('entries_with_ranking')
     .select(
@@ -44,42 +41,42 @@ export default async function RankingPage() {
     );
   }
 
-  // 修正2: アプリ側での順位計算用変数
+  // 順位計算用変数
   let currentRank = 1;
   let sameRankCount = 0;
   let previousScore: number | null = null;
 
-  const players: PlayerData[] = (entries || []).map(
-    (entry: any, index: number) => {
-      const playerName = entry.participants?.name ?? '不明な選手';
-      const teamName = entry.participants?.teams?.name ?? '所属なし';
-      const score = entry.total_score || 0;
+  const players: PlayerData[] = (entries || []).map((entry: any) => {
+    const playerName = entry.participants?.name ?? '不明な選手';
+    const teamName = entry.participants?.teams?.name ?? '所属なし';
+    const score = entry.total_score || 0;
 
-      // 順位計算ロジック（スコアが変わったらランクを進める）
-      if (previousScore !== null) {
-        if (score < previousScore) {
-          currentRank += sameRankCount + 1;
-          sameRankCount = 0;
-        } else {
-          sameRankCount++;
-        }
+    // 順位計算
+    if (previousScore !== null) {
+      if (score < previousScore) {
+        currentRank += sameRankCount + 1;
+        sameRankCount = 0;
+      } else {
+        sameRankCount++;
       }
-      previousScore = score;
-
-      // DBに順位があれば優先して使用し、なければ計算した順位(currentRank)を使用する
-      // これにより全選手に必ず順位が表示されます
-      const displayRank = entry.provisional_ranking ?? currentRank;
-
-      return {
-        id: entry.id,
-        bib_number: entry.bib_number,
-        player_name: playerName,
-        team_name: teamName,
-        total_score: score,
-        provisional_ranking: displayRank,
-      };
     }
-  );
+    previousScore = score;
+
+    const displayRank = entry.provisional_ranking ?? currentRank;
+
+    return {
+      id: entry.id,
+      bib_number: entry.bib_number,
+      player_name: playerName,
+      team_name: teamName,
+      // 各回スコアのマッピングを追加
+      score_am1: entry.score_am1,
+      score_am2: entry.score_am2,
+      score_pm1: entry.score_pm1,
+      total_score: score,
+      provisional_ranking: displayRank,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
