@@ -169,19 +169,19 @@ export default function RankingPage() {
           onClick={() => setActiveTab('am1')}
           className={getTabClass('am1')}
         >
-          午前1
+          午前1立目
         </button>
         <button
           onClick={() => setActiveTab('am2')}
           className={getTabClass('am2')}
         >
-          午前2
+          午前2立目
         </button>
         <button
           onClick={() => setActiveTab('pm1')}
           className={getTabClass('pm1')}
         >
-          午後1
+          午後1立目
         </button>
         <button
           onClick={() => setActiveTab('total')}

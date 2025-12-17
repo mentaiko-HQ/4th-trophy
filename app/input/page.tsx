@@ -14,18 +14,15 @@ export default async function ScoreInputPage({
   const currentTab = params.tab || 'am1';
 
   // Supabaseからデータ取得
-  const { data: rawData, error } = await supabase.from('entries').select(`
+  // 変更: 暫定順位等を取得するため、ビュー 'entries_with_ranking' から取得
+  const { data: rawData, error } = await supabase.from('entries_with_ranking')
+    .select(`
       id,
       bib_number,
-      order_am1,
-      order_am2,
-      order_pm1,
-      score_am1,
-      score_am2,
-      score_pm1,
-      status_am1,
-      status_am2,
-      status_pm1,
+      order_am1, order_am2, order_pm1,
+      score_am1, score_am2, score_pm1,
+      total_score, provisional_ranking, final_ranking,
+      playoff_type,
       participants (
         name,
         teams (
@@ -37,12 +34,12 @@ export default async function ScoreInputPage({
   if (error) {
     console.error('Supabase Error:', error);
     return (
-      <div className="min-h-screen bg-gray-100 py-10 px-4">
-        <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-md border-l-4 border-red-500">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">
+      <div className="min-h-screen bg-[#F0F4F5] py-10 px-4">
+        <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-md border-l-4 border-[#34675C]">
+          <h2 className="text-2xl font-bold text-[#34675C] mb-4">
             データの取得に失敗しました
           </h2>
-          <div className="bg-gray-100 p-4 rounded overflow-auto font-mono text-sm">
+          <div className="bg-gray-100 p-4 rounded overflow-auto font-mono text-sm text-[#324857]">
             <p className="mb-2">
               <strong>Code:</strong> {error.code}
             </p>
@@ -69,29 +66,39 @@ export default async function ScoreInputPage({
           score_am1: entry.score_am1 ?? null,
           score_am2: entry.score_am2 ?? null,
           score_pm1: entry.score_pm1 ?? null,
-          // ステータス情報の追加（デフォルトは waiting）
-          status_am1: entry.status_am1 ?? 'waiting',
-          status_am2: entry.status_am2 ?? 'waiting',
-          status_pm1: entry.status_pm1 ?? 'waiting',
+
+          // 決勝・集計用データの追加
+          total_score: entry.total_score ?? 0,
+          provisional_ranking: entry.provisional_ranking ?? null,
+          playoff_type: entry.playoff_type ?? null, // 'izume' | 'enkin' | null
         };
       })
     : [];
 
   // 2. 現在のタブに応じてソートキーを決定
-  let sortKey: 'order_am1' | 'order_am2' | 'order_pm1' = 'order_am1';
-  if (currentTab === 'am2') sortKey = 'order_am2';
-  if (currentTab === 'pm1') sortKey = 'order_pm1';
+  // finalタブの場合は暫定順位順、それ以外は立順
+  if (currentTab === 'final') {
+    allPlayers.sort((a, b) => {
+      // 順位がない（NULL）場合は末尾へ
+      const rankA = a.provisional_ranking ?? 999999;
+      const rankB = b.provisional_ranking ?? 999999;
+      return rankA - rankB;
+    });
+  } else {
+    let sortKey: 'order_am1' | 'order_am2' | 'order_pm1' = 'order_am1';
+    if (currentTab === 'am2') sortKey = 'order_am2';
+    if (currentTab === 'pm1') sortKey = 'order_pm1';
 
-  // 3. 決定したキーで昇順ソート
-  allPlayers.sort((a, b) => {
-    const valA = a[sortKey] !== null ? Number(a[sortKey]) : 999999;
-    const valB = b[sortKey] !== null ? Number(b[sortKey]) : 999999;
-    return valA - valB;
-  });
+    allPlayers.sort((a, b) => {
+      const valA = a[sortKey] !== null ? Number(a[sortKey]) : 999999;
+      const valB = b[sortKey] !== null ? Number(b[sortKey]) : 999999;
+      return valA - valB;
+    });
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 sm:py-10 px-2 sm:px-4">
-      <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">
+    <div className="min-h-screen bg-[#F0F4F5] py-6 sm:py-10 px-2 sm:px-4">
+      <h1 className="text-2xl font-bold text-center text-[#324857] mb-6">
         予選 成績入力
       </h1>
 
