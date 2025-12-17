@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
   Trophy,
   Target,
-  User,
   Filter,
   ArrowUp,
   ArrowDown,
@@ -12,15 +11,19 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-// 【重要】ここで export を付けて、外部から PlayerData 型を参照できるようにする
+// データの型定義
+// 予選スコア (score_am1, score_am2, score_pm1) を追加
 export interface PlayerData {
   id: string;
   bib_number: string | number;
   player_name: string;
   team_name: string;
+  score_am1: number | null; // 午前1
+  score_am2: number | null; // 午前2
+  score_pm1: number | null; // 午後1
   total_score: number; // 合計的中数
   provisional_ranking: number | null; // 暫定順位
-  prev_ranking?: number | null; // 前回順位（変動表示用）
+  prev_ranking?: number | null; // 前回順位
 }
 
 interface ScoreListProps {
@@ -43,11 +46,13 @@ export default function ScoreList({ players }: ScoreListProps) {
     return <Minus size={16} className="text-gray-400" />;
   };
 
+  // スコア表示用のヘルパー（nullの場合は '-' を表示）
+  const displayScore = (score: number | null) => (score !== null ? score : '-');
+
   return (
     <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800">
       {/* タブナビゲーション */}
       <div className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200">
-        {/* 左側: 部門別成績 */}
         <button
           onClick={() => setActiveTab('category')}
           className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors duration-200 ${
@@ -58,8 +63,6 @@ export default function ScoreList({ players }: ScoreListProps) {
         >
           部門別成績
         </button>
-
-        {/* 右側: 総合成績 */}
         <button
           onClick={() => setActiveTab('total')}
           className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors duration-200 ${
@@ -92,42 +95,26 @@ export default function ScoreList({ players }: ScoreListProps) {
                 key={player.id}
                 className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
               >
-                {/* 1行目: 選手基本情報 */}
+                {/* ========================================================================
+                    1行目: 選手基本情報 (Rankバッジ削除)
+                   ======================================================================== */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    {/* 順位バッジ (デザイン変更箇所) */}
-                    <div className="flex-shrink-0">
-                      {player.provisional_ranking ? (
-                        <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
-                          <span className="text-[10px] font-bold leading-none">
-                            Rank
-                          </span>
-                          <span className="text-lg font-bold leading-none">
-                            {player.provisional_ranking}
-                          </span>
-                        </div>
-                      ) : (
-                        // 順位がない場合のフォールバック（サイズを合わせて調整）
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
-                          <User size={20} />
-                        </div>
-                      )}
-                    </div>
-
                     {/* 名前・所属・ゼッケン */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        {/* ゼッケン番号 */}
+                        <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
+                          No.{player.bib_number}
+                        </span>
+                        {/* 選手名 */}
                         <div className="font-bold text-[#324857] truncate text-lg">
                           {player.player_name}
                         </div>
                       </div>
-                      <div className="flex items-center text-xs text-[#7B8B9A] gap-2">
-                        <span className="bg-[#E8ECEF] px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
-                          No.{player.bib_number}
-                        </span>
-                        <span className="truncate font-medium">
-                          {player.team_name}
-                        </span>
+                      {/* チーム名 */}
+                      <div className="text-xs text-[#7B8B9A] font-medium truncate pl-1">
+                        {player.team_name}
                       </div>
                     </div>
 
@@ -136,7 +123,39 @@ export default function ScoreList({ players }: ScoreListProps) {
                   </div>
                 </div>
 
-                {/* 2行目: 成績情報 */}
+                {/* ========================================================================
+                    2行目: 各回スコア (午前1, 午前2, 午後1)
+                   ======================================================================== */}
+                <div className="flex border-t border-[#E8ECEF] bg-white divide-x divide-[#E8ECEF]">
+                  <div className="flex-1 py-2 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      午前1
+                    </span>
+                    <span className="text-sm font-bold text-[#324857]">
+                      {displayScore(player.score_am1)}
+                    </span>
+                  </div>
+                  <div className="flex-1 py-2 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      午前2
+                    </span>
+                    <span className="text-sm font-bold text-[#324857]">
+                      {displayScore(player.score_am2)}
+                    </span>
+                  </div>
+                  <div className="flex-1 py-2 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      午後1
+                    </span>
+                    <span className="text-sm font-bold text-[#324857]">
+                      {displayScore(player.score_pm1)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ========================================================================
+                    3行目: 合計成績・順位 (合計的中数, 暫定順位)
+                   ======================================================================== */}
                 <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
                   {/* 合計的中数 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
@@ -165,11 +184,11 @@ export default function ScoreList({ players }: ScoreListProps) {
                           : '-'}
                       </span>
                       {player.provisional_ranking && (
-                        <div className="flex items-center bg-white rounded-full px-1 py-0.5 shadow-sm border border-gray-100">
-                          {getRankChangeIcon(
-                            player.provisional_ranking,
-                            player.prev_ranking
-                          )}
+                        // 順位バッジのデザインを維持しつつ、小さいアイコンとして表示
+                        <div className="flex items-center justify-center w-6 h-6 bg-[#34675C] rounded-full text-white shadow-sm">
+                          <span className="text-[10px] font-bold">
+                            {player.provisional_ranking}
+                          </span>
                         </div>
                       )}
                     </div>
