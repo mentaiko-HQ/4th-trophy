@@ -12,16 +12,15 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-// データの型定義（入力画面と共通の構造を想定）
+// 【重要】ここで export を付けて、外部から PlayerData 型を参照できるようにする
 export interface PlayerData {
   id: string;
   bib_number: string | number;
   player_name: string;
   team_name: string;
   total_score: number; // 合計的中数
-  total_arrows?: number; // 総射数（的中率計算用。無ければ固定値等で対応）
   provisional_ranking: number | null; // 暫定順位
-  prev_ranking?: number | null; // 前回順位（変動表示用。無ければ非表示）
+  prev_ranking?: number | null; // 前回順位（変動表示用）
 }
 
 interface ScoreListProps {
@@ -29,6 +28,7 @@ interface ScoreListProps {
 }
 
 export default function ScoreList({ players }: ScoreListProps) {
+  // 初期表示タブは 'total'（総合成績）とする
   const [activeTab, setActiveTab] = useState<'total' | 'category'>('total');
 
   // 順位変動アイコンを取得するヘルパー関数
@@ -37,7 +37,7 @@ export default function ScoreList({ players }: ScoreListProps) {
     prev: number | null | undefined
   ) => {
     if (!current || !prev) return <Minus size={16} className="text-gray-300" />;
-    if (current < prev) return <ArrowUp size={16} className="text-red-500" />; // ランクアップ（数字が小さくなる）
+    if (current < prev) return <ArrowUp size={16} className="text-red-500" />; // ランクアップ
     if (current > prev)
       return <ArrowDown size={16} className="text-blue-500" />; // ランクダウン
     return <Minus size={16} className="text-gray-400" />;
@@ -45,18 +45,9 @@ export default function ScoreList({ players }: ScoreListProps) {
 
   return (
     <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800">
-      {/* タブナビゲーション（総合成績 / 部門別成績） */}
+      {/* タブナビゲーション */}
       <div className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200">
-        <button
-          onClick={() => setActiveTab('total')}
-          className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors duration-200 ${
-            activeTab === 'total'
-              ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          総合成績
-        </button>
+        {/* 左側: 部門別成績 */}
         <button
           onClick={() => setActiveTab('category')}
           className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors duration-200 ${
@@ -67,13 +58,25 @@ export default function ScoreList({ players }: ScoreListProps) {
         >
           部門別成績
         </button>
+
+        {/* 右側: 総合成績 */}
+        <button
+          onClick={() => setActiveTab('total')}
+          className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors duration-200 ${
+            activeTab === 'total'
+              ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          総合成績
+        </button>
       </div>
 
       {/* メインリスト表示エリア */}
       <div className="space-y-4">
         {activeTab === 'total' && (
           <>
-            {/* フィルタなどのヘッダー操作部（必要に応じて実装） */}
+            {/* ヘッダー操作部 */}
             <div className="flex justify-between items-center px-1 mb-2">
               <span className="text-xs font-bold text-gray-500">
                 表示件数: {players.length}件
@@ -89,16 +92,13 @@ export default function ScoreList({ players }: ScoreListProps) {
                 key={player.id}
                 className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
               >
-                {/* ========================================================================
-                    1行目: 選手基本情報
-                   ======================================================================== */}
+                {/* 1行目: 選手基本情報 */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    {/* アイコンまたは順位バッジ */}
+                    {/* 順位バッジ/アイコン */}
                     <div className="flex-shrink-0">
                       {player.provisional_ranking &&
                       player.provisional_ranking <= 3 ? (
-                        // 上位3位は色付きのトロフィーなどを表示する例
                         <div
                           className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-sm
                                 ${
@@ -112,7 +112,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                           {player.provisional_ranking}
                         </div>
                       ) : (
-                        // それ以外は通常のアバターまたはアイコン
                         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
                           <User size={24} />
                         </div>
@@ -136,17 +135,14 @@ export default function ScoreList({ players }: ScoreListProps) {
                       </div>
                     </div>
 
-                    {/* 詳細への矢印（リンク用） */}
+                    {/* 詳細リンク用アイコン */}
                     <ChevronRight className="text-gray-300" size={20} />
                   </div>
                 </div>
 
-                {/* ========================================================================
-                    2行目: 成績情報（合計的中数・暫定順位）
-                    ★ご要望の修正箇所: flex-1 を適用し、左右均等幅（50%:50%）に設定
-                   ======================================================================== */}
+                {/* 2行目: 成績情報 */}
                 <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
-                  {/* 左側: 合計的中数 */}
+                  {/* 合計的中数 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
                     <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
                       <Target size={14} className="mr-1" />
@@ -158,11 +154,9 @@ export default function ScoreList({ players }: ScoreListProps) {
                         中
                       </span>
                     </div>
-                    {/* 的中率などを表示する場合のスペース */}
-                    {/* <div className="text-[10px] text-blue-600 font-bold mt-0.5">85.0%</div> */}
                   </div>
 
-                  {/* 右側: 暫定順位 */}
+                  {/* 暫定順位 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
                       <Trophy size={14} className="mr-1" />
@@ -174,7 +168,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                           ? `${player.provisional_ranking}位`
                           : '-'}
                       </span>
-                      {/* 変動アイコン表示 */}
                       {player.provisional_ranking && (
                         <div className="flex items-center bg-white rounded-full px-1 py-0.5 shadow-sm border border-gray-100">
                           {getRankChangeIcon(
@@ -191,7 +184,7 @@ export default function ScoreList({ players }: ScoreListProps) {
           </>
         )}
 
-        {/* 部門別成績タブの内容（プレースホルダー） */}
+        {/* 部門別成績タブの内容 */}
         {activeTab === 'category' && (
           <div className="text-center py-10 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
             部門別成績は準備中です
