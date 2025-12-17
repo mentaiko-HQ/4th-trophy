@@ -15,12 +15,18 @@ import {
 type Entry = {
   id: string;
   bib_number: number;
+  // 各立の立順
   order_am1: number | null;
   order_am2: number | null;
   order_pm1: number | null;
+  // 各立の成績
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
+  // 各立のステータス (追加)
+  status_am1: string | null;
+  status_am2: string | null;
+  status_pm1: string | null;
   participants: {
     name: string;
     carriage: string | null;
@@ -40,6 +46,7 @@ export default function RankingPage() {
         bib_number,
         order_am1, order_am2, order_pm1,
         score_am1, score_am2, score_pm1,
+        status_am1, status_am2, status_pm1,
         participants (
           name,
           carriage,
@@ -194,23 +201,26 @@ export default function RankingPage() {
               chunkedEntries.map((group, groupIndex) => (
                 <TableBody
                   key={groupIndex}
-                  // グループごとの区切り線（最後のグループ以外）
                   className="border-b-[3px] border-[#34675C]/30 last:border-0"
                 >
                   {group.map((entry) => {
-                    // 現在のタブに応じた立順とスコアを取得
+                    // 現在のタブに応じた立順、スコア、ステータスを取得
                     let orderVal: number | null = null;
                     let scoreVal: number | null = null;
+                    let statusVal: string | null = null;
 
                     if (activeTab === 'am1') {
                       orderVal = entry.order_am1;
                       scoreVal = entry.score_am1;
+                      statusVal = entry.status_am1;
                     } else if (activeTab === 'am2') {
                       orderVal = entry.order_am2;
                       scoreVal = entry.score_am2;
+                      statusVal = entry.status_am2;
                     } else {
                       orderVal = entry.order_pm1;
                       scoreVal = entry.score_pm1;
+                      statusVal = entry.status_pm1;
                     }
 
                     return (
@@ -222,8 +232,21 @@ export default function RankingPage() {
                           {orderVal}
                         </TableCell>
                         <TableCell>
-                          <div className="text-base font-bold text-[#324857]">
-                            {entry.participants.name}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base font-bold text-[#324857]">
+                              {entry.participants.name}
+                            </span>
+                            {/* ステータスバッジの表示 */}
+                            {statusVal === 'called' && (
+                              <span className="text-[10px] font-bold text-white bg-[#86AC41] px-2 py-0.5 rounded-full animate-pulse shadow-sm whitespace-nowrap">
+                                控えに準備
+                              </span>
+                            )}
+                            {statusVal === 'shooting' && (
+                              <span className="text-[10px] font-bold text-white bg-[#34675C] px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap">
+                                行射中
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-[#7DA3A1] mt-0.5 flex flex-wrap gap-2">
                             <span className="bg-[#7DA3A1]/10 px-1.5 py-0.5 rounded border border-[#7DA3A1]/20">
