@@ -1,6 +1,13 @@
 import { createClient } from '@/utils/supabase/server';
 import ScoreInputClient, { PlayerData } from './components/ScoreInputClient';
 
+import type { Metadata } from 'next'; // 追加
+
+// タイトル設定を追加
+export const metadata: Metadata = {
+  title: '成績入力',
+};
+
 // ページコンポーネント (Server Component)
 export default async function ScoreInputPage({
   searchParams,

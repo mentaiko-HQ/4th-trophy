@@ -28,7 +28,7 @@ interface ScoreListProps {
 }
 
 export default function ScoreList({ players }: ScoreListProps) {
-  // 初期表示タブは 'total'（総合成績）とする
+  // 初期表示タブは 'total'（総合成績）
   const [activeTab, setActiveTab] = useState<'total' | 'category'>('total');
 
   // 順位変動アイコンを取得するヘルパー関数
@@ -95,25 +95,21 @@ export default function ScoreList({ players }: ScoreListProps) {
                 {/* 1行目: 選手基本情報 */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    {/* 順位バッジ/アイコン */}
+                    {/* 順位バッジ (デザイン変更箇所) */}
                     <div className="flex-shrink-0">
-                      {player.provisional_ranking &&
-                      player.provisional_ranking <= 3 ? (
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-sm
-                                ${
-                                  player.provisional_ranking === 1
-                                    ? 'bg-yellow-400'
-                                    : player.provisional_ranking === 2
-                                    ? 'bg-gray-400'
-                                    : 'bg-orange-400'
-                                }`}
-                        >
-                          {player.provisional_ranking}
+                      {player.provisional_ranking ? (
+                        <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
+                          <span className="text-[10px] font-bold leading-none">
+                            Rank
+                          </span>
+                          <span className="text-lg font-bold leading-none">
+                            {player.provisional_ranking}
+                          </span>
                         </div>
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                          <User size={24} />
+                        // 順位がない場合のフォールバック（サイズを合わせて調整）
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
+                          <User size={20} />
                         </div>
                       )}
                     </div>

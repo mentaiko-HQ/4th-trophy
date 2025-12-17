@@ -1,5 +1,11 @@
 import { createClient } from '@/utils/supabase/server';
 import ScoreList, { PlayerData } from './components/ScoreList';
+import type { Metadata } from 'next'; // 追加
+
+// タイトル設定を追加
+export const metadata: Metadata = {
+  title: '成績閲覧',
+};
 
 export default async function RankingPage() {
   const supabase = await createClient();

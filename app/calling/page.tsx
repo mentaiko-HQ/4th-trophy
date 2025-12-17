@@ -3,6 +3,13 @@ import CallingStatusClient, {
   PlayerData,
 } from './components/CallingStatusClient';
 
+import type { Metadata } from 'next'; // 追加
+
+// タイトル設定を追加
+export const metadata: Metadata = {
+  title: '選手呼出',
+};
+
 export default async function CallingPage({
   searchParams,
 }: {
