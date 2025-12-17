@@ -3,6 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import {
+  Trophy,
+  Target,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Loader2,
+} from 'lucide-react';
 
 export type PlayerData = {
   id: string;
@@ -92,7 +100,7 @@ const ScoreInputModal = ({
       const pairIndex = Math.floor(groupIndex / 2) + 1;
       const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
 
-      alert(`${label} 第${pairIndex}組-${shajo}のデータを保存しました`);
+      // alert(`${label} 第${pairIndex}組-${shajo}のデータを保存しました`); // 頻繁なアラートはUXを損なうため削除またはトースト通知推奨
       onSaveSuccess();
       onClose();
     } catch (error) {
@@ -220,7 +228,13 @@ const ScoreInputModal = ({
                         }
                     `}
             >
-              {isSubmitting ? '保存中...' : '保存する'}
+              {isSubmitting ? (
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 保存中...
+                </div>
+              ) : (
+                '保存する'
+              )}
             </button>
           </div>
         </div>
@@ -333,7 +347,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
           onClick={() => handleTabChange('final')}
           className={getTabClass('final')}
         >
-          決勝
+          決勝・集計
         </button>
       </div>
 
@@ -344,43 +358,74 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
           {players.map((player) => (
             <div
               key={player.id}
-              className="bg-white border border-[#7DA3A1]/30 rounded-xl p-4 shadow-sm"
+              className="bg-white border border-[#E8ECEF] rounded-xl shadow-sm overflow-hidden"
             >
-              {/* 1行目: 順位・情報・スコア */}
-              <div className="flex items-center justify-between mb-3 border-b border-[#7DA3A1]/10 pb-3">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  {/* 暫定順位 */}
-                  <span className="flex-shrink-0 bg-[#34675C] text-white font-bold text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
-                    {player.provisional_ranking ?? '-'}
-                  </span>
-                  {/* ゼッケン・氏名 */}
-                  <div className="min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xs text-[#7DA3A1] font-bold">
-                        No.{player.bib_number}
+              {/* 1行目: 選手情報 */}
+              <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3 flex-1">
+                  {/* 順位バッジ */}
+                  {player.provisional_ranking && (
+                    <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
+                      <span className="text-xs font-bold leading-none">
+                        Rank
                       </span>
-                      <span className="text-base font-bold text-[#324857] truncate">
-                        {player.player_name}
+                      <span className="text-lg font-bold leading-none">
+                        {player.provisional_ranking}
                       </span>
                     </div>
-                    <div className="text-xs text-[#7DA3A1] truncate">
+                  )}
+
+                  {/* 名前と所属 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-bold bg-[#E8ECEF] text-[#7B8B9A] px-1.5 py-0.5 rounded">
+                        No.{player.bib_number}
+                      </span>
+                      <div className="font-bold text-[#324857] truncate text-lg">
+                        {player.player_name}
+                      </div>
+                    </div>
+                    <div className="text-xs text-[#7B8B9A] truncate font-bold">
                       {player.team_name}
                     </div>
                   </div>
                 </div>
-                {/* 合計スコア */}
-                <div className="text-right">
-                  <div className="text-[10px] text-[#7DA3A1] font-bold">
-                    Total
+              </div>
+
+              {/* 2行目: 成績情報（合計的中数・暫定順位） - 均等幅表示 */}
+              <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
+                {/* 合計的中数ブロック */}
+                <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
+                  <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-medium">
+                    <Target size={14} className="mr-1" />
+                    <span>合計的中数</span>
                   </div>
-                  <div className="text-xl font-bold text-[#86AC41]">
+                  <div className="text-xl font-bold text-[#324857]">
                     {player.total_score}
+                    <span className="text-xs font-normal text-[#7B8B9A] ml-1">
+                      中
+                    </span>
+                  </div>
+                </div>
+
+                {/* 暫定順位ブロック */}
+                <div className="flex-1 py-3 flex flex-col items-center justify-center">
+                  <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-medium">
+                    <Trophy size={14} className="mr-1" />
+                    <span>暫定順位</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="text-xl font-bold text-[#324857]">
+                      {player.provisional_ranking
+                        ? `${player.provisional_ranking}位`
+                        : '-'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* 2行目: 決勝区分選択ボタン (射詰 / 遠近) */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* 3行目: 決勝区分選択ボタン (射詰 / 遠近) */}
+              <div className="p-3 bg-white border-t border-[#E8ECEF] grid grid-cols-2 gap-3">
                 {/* 射詰ボタン */}
                 <button
                   onClick={() =>
@@ -391,7 +436,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                   }
                   disabled={loadingId === player.id}
                   className={`
-                    py-2 rounded-lg font-bold text-sm transition-all border
+                    py-2 rounded-lg font-bold text-sm transition-all border flex items-center justify-center
                     ${
                       player.playoff_type === 'izume'
                         ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-md ring-2 ring-[#E06B80] ring-offset-1' // 選択中
@@ -399,6 +444,10 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     }
                   `}
                 >
+                  {loadingId === player.id &&
+                  player.playoff_type !== 'izume' ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : null}
                   射詰
                 </button>
 
@@ -412,7 +461,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                   }
                   disabled={loadingId === player.id}
                   className={`
-                    py-2 rounded-lg font-bold text-sm transition-all border
+                    py-2 rounded-lg font-bold text-sm transition-all border flex items-center justify-center
                     ${
                       player.playoff_type === 'enkin'
                         ? 'bg-[#34675C] text-white border-[#34675C] shadow-md ring-2 ring-[#7DA3A1] ring-offset-1' // 選択中
@@ -420,6 +469,10 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     }
                   `}
                 >
+                  {loadingId === player.id &&
+                  player.playoff_type !== 'enkin' ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : null}
                   遠近
                 </button>
               </div>
