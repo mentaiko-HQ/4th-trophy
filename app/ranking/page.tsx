@@ -15,17 +15,15 @@ import {
 type Entry = {
   id: string;
   bib_number: number;
-  // 各立の立順
   order_am1: number | null;
   order_am2: number | null;
   order_pm1: number | null;
-  // 各立の成績
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
   participants: {
     name: string;
-    carriage: string | null; // 段位(dan_rank)から所作(carriage)へ変更
+    carriage: string | null;
     teams: { name: string } | null;
   };
 };
@@ -83,7 +81,6 @@ export default function RankingPage() {
     if (activeTab === 'am2') targetOrderKey = 'order_am2';
     if (activeTab === 'pm1') targetOrderKey = 'order_pm1';
 
-    // 立順が設定されているデータのみ抽出し、立順昇順でソート
     return entries
       .filter((e) => e[targetOrderKey] !== null)
       .sort(
@@ -93,7 +90,13 @@ export default function RankingPage() {
 
   const displayEntries = getDisplayData();
 
-  // 現在のタブに応じたラベル情報などを取得
+  // データを5人ごとのチャンクに分割する
+  const chunkedEntries: Entry[][] = [];
+  for (let i = 0; i < displayEntries.length; i += 5) {
+    chunkedEntries.push(displayEntries.slice(i, i + 5));
+  }
+
+  // タブ情報
   const getTabInfo = () => {
     if (activeTab === 'am1') return { title: '午前1', maxScore: 2 };
     if (activeTab === 'am2') return { title: '午前2', maxScore: 2 };
@@ -167,7 +170,6 @@ export default function RankingPage() {
                 <TableHead className="font-bold text-[#324857]">
                   選手名 / 所属
                 </TableHead>
-                {/* 項目名を所作に変更 */}
                 <TableHead className="text-center font-bold w-[80px] text-[#324857]">
                   所作
                 </TableHead>
@@ -176,8 +178,9 @@ export default function RankingPage() {
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {displayEntries.length === 0 ? (
+            {/* 5人ごとのグループ（チャンク）単位で TableBody を生成 */}
+            {chunkedEntries.length === 0 ? (
+              <TableBody>
                 <TableRow>
                   <TableCell
                     colSpan={4}
@@ -186,59 +189,66 @@ export default function RankingPage() {
                     該当するデータがありません
                   </TableCell>
                 </TableRow>
-              ) : (
-                displayEntries.map((entry) => {
-                  // 現在のタブに応じた立順とスコアを取得
-                  let orderVal: number | null = null;
-                  let scoreVal: number | null = null;
+              </TableBody>
+            ) : (
+              chunkedEntries.map((group, groupIndex) => (
+                <TableBody
+                  key={groupIndex}
+                  // グループごとの区切り線（最後のグループ以外）
+                  className="border-b-[3px] border-[#34675C]/30 last:border-0"
+                >
+                  {group.map((entry) => {
+                    // 現在のタブに応じた立順とスコアを取得
+                    let orderVal: number | null = null;
+                    let scoreVal: number | null = null;
 
-                  if (activeTab === 'am1') {
-                    orderVal = entry.order_am1;
-                    scoreVal = entry.score_am1;
-                  } else if (activeTab === 'am2') {
-                    orderVal = entry.order_am2;
-                    scoreVal = entry.score_am2;
-                  } else {
-                    orderVal = entry.order_pm1;
-                    scoreVal = entry.score_pm1;
-                  }
+                    if (activeTab === 'am1') {
+                      orderVal = entry.order_am1;
+                      scoreVal = entry.score_am1;
+                    } else if (activeTab === 'am2') {
+                      orderVal = entry.order_am2;
+                      scoreVal = entry.score_am2;
+                    } else {
+                      orderVal = entry.order_pm1;
+                      scoreVal = entry.score_pm1;
+                    }
 
-                  return (
-                    <TableRow
-                      key={entry.id}
-                      className="hover:bg-[#7DA3A1]/10 border-b border-gray-100 last:border-0"
-                    >
-                      <TableCell className="text-center font-bold text-lg text-[#34675C]">
-                        {orderVal}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-base font-bold text-[#324857]">
-                          {entry.participants.name}
-                        </div>
-                        <div className="text-xs text-[#7DA3A1] mt-0.5 flex flex-wrap gap-2">
-                          <span className="bg-[#7DA3A1]/10 px-1.5 py-0.5 rounded border border-[#7DA3A1]/20">
-                            No.{entry.bib_number}
+                    return (
+                      <TableRow
+                        key={entry.id}
+                        className="hover:bg-[#7DA3A1]/10 border-b border-gray-100 last:border-0"
+                      >
+                        <TableCell className="text-center font-bold text-lg text-[#34675C]">
+                          {orderVal}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-base font-bold text-[#324857]">
+                            {entry.participants.name}
+                          </div>
+                          <div className="text-xs text-[#7DA3A1] mt-0.5 flex flex-wrap gap-2">
+                            <span className="bg-[#7DA3A1]/10 px-1.5 py-0.5 rounded border border-[#7DA3A1]/20">
+                              No.{entry.bib_number}
+                            </span>
+                            <span>{entry.participants.teams?.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center text-xs text-gray-600">
+                          {entry.participants.carriage}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-2xl font-bold text-[#86AC41]">
+                            {scoreVal !== null ? scoreVal : '-'}
                           </span>
-                          <span>{entry.participants.teams?.name}</span>
-                        </div>
-                      </TableCell>
-                      {/* carriageを表示 */}
-                      <TableCell className="text-center text-xs text-gray-600">
-                        {entry.participants.carriage}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-2xl font-bold text-[#86AC41]">
-                          {scoreVal !== null ? scoreVal : '-'}
-                        </span>
-                        <span className="text-xs text-[#7DA3A1] ml-1 font-medium">
-                          / {maxScore}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
+                          <span className="text-xs text-[#7DA3A1] ml-1 font-medium">
+                            / {maxScore}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              ))
+            )}
           </Table>
         </div>
       )}
