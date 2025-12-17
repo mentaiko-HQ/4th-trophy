@@ -25,7 +25,7 @@ type Entry = {
   score_pm1: number | null;
   participants: {
     name: string;
-    dan_rank: string | null;
+    carriage: string | null; // 段位(dan_rank)から所作(carriage)へ変更
     teams: { name: string } | null;
   };
 };
@@ -44,7 +44,7 @@ export default function RankingPage() {
         score_am1, score_am2, score_pm1,
         participants (
           name,
-          dan_rank,
+          carriage,
           teams ( name )
         )
       `);
@@ -107,9 +107,9 @@ export default function RankingPage() {
     const baseClass =
       'flex-1 py-4 text-center font-bold text-sm sm:text-base transition-all duration-200 border-b-4 outline-none';
     const activeClass =
-      'border-[#CD2C58] text-[#CD2C58] bg-white shadow-sm z-10 relative';
+      'border-[#34675C] text-[#34675C] bg-white shadow-sm z-10 relative rounded-t-lg';
     const inactiveClass =
-      'border-transparent text-gray-500 hover:text-[#CD2C58] hover:bg-[#FFE6D4]';
+      'border-transparent text-[#7DA3A1] hover:text-[#34675C] hover:bg-[#7DA3A1]/10';
     return `${baseClass} ${
       activeTab === tabName ? activeClass : inactiveClass
     }`;
@@ -118,59 +118,60 @@ export default function RankingPage() {
   return (
     <div className="container mx-auto py-10 px-4 max-w-3xl">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          <span className="text-[#CD2C58]">{title}</span> 立順・的中速報
+        <h1 className="text-2xl font-bold text-[#324857]">
+          <span className="text-[#34675C]">{title}</span> 立順・的中速報
         </h1>
-        <div className="flex items-center gap-2 text-xs text-[#CD2C58] font-bold bg-[#FFE6D4] px-3 py-1 rounded-full">
+        <div className="flex items-center gap-2 text-xs text-[#34675C] font-bold bg-[#7DA3A1]/20 px-3 py-1 rounded-full">
           <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E06B80] opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#CD2C58]"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#86AC41] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#34675C]"></span>
           </span>
           LIVE接続中
         </div>
       </div>
 
       {/* タブナビゲーション */}
-      <div className="flex bg-[#FFE6D4] p-1 rounded-t-xl overflow-hidden border-b border-[#FFC69D] mb-6">
+      <div className="flex bg-[#7DA3A1]/20 p-1 rounded-t-xl overflow-hidden border-b border-[#7DA3A1]/30 mb-6">
         <button
           onClick={() => setActiveTab('am1')}
-          className={`rounded-t-lg ${getTabClass('am1')}`}
+          className={getTabClass('am1')}
         >
           午前1
         </button>
         <button
           onClick={() => setActiveTab('am2')}
-          className={`rounded-t-lg ${getTabClass('am2')}`}
+          className={getTabClass('am2')}
         >
           午前2
         </button>
         <button
           onClick={() => setActiveTab('pm1')}
-          className={`rounded-t-lg ${getTabClass('pm1')}`}
+          className={getTabClass('pm1')}
         >
           午後1
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-gray-500">
+        <div className="text-center py-10 text-[#7DA3A1]">
           データを読み込んでいます...
         </div>
       ) : (
-        <div className="border border-gray-200 rounded-lg shadow-sm overflow-hidden bg-white">
+        <div className="border border-[#7DA3A1]/30 rounded-lg shadow-sm overflow-hidden bg-white">
           <Table>
-            <TableHeader className="bg-[#FFE6D4]">
-              <TableRow className="border-b border-[#FFC69D] hover:bg-[#FFE6D4]">
-                <TableHead className="w-[80px] text-center font-bold text-[#CD2C58]">
+            <TableHeader className="bg-[#7DA3A1]/20">
+              <TableRow className="border-b border-[#7DA3A1]/30 hover:bg-[#7DA3A1]/10">
+                <TableHead className="w-[80px] text-center font-bold text-[#34675C]">
                   立順
                 </TableHead>
-                <TableHead className="font-bold text-gray-700">
+                <TableHead className="font-bold text-[#324857]">
                   選手名 / 所属
                 </TableHead>
-                <TableHead className="text-center font-bold w-[80px] text-gray-700">
-                  段位
+                {/* 項目名を所作に変更 */}
+                <TableHead className="text-center font-bold w-[80px] text-[#324857]">
+                  所作
                 </TableHead>
-                <TableHead className="text-right font-bold w-[100px] text-gray-700">
+                <TableHead className="text-right font-bold w-[100px] text-[#324857]">
                   的中
                 </TableHead>
               </TableRow>
@@ -205,30 +206,31 @@ export default function RankingPage() {
                   return (
                     <TableRow
                       key={entry.id}
-                      className="hover:bg-[#FFE6D4]/30 border-b border-gray-100 last:border-0"
+                      className="hover:bg-[#7DA3A1]/10 border-b border-gray-100 last:border-0"
                     >
-                      <TableCell className="text-center font-bold text-lg text-gray-800">
+                      <TableCell className="text-center font-bold text-lg text-[#34675C]">
                         {orderVal}
                       </TableCell>
                       <TableCell>
-                        <div className="text-base font-bold text-gray-800">
+                        <div className="text-base font-bold text-[#324857]">
                           {entry.participants.name}
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-2">
-                          <span className="bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                        <div className="text-xs text-[#7DA3A1] mt-0.5 flex flex-wrap gap-2">
+                          <span className="bg-[#7DA3A1]/10 px-1.5 py-0.5 rounded border border-[#7DA3A1]/20">
                             No.{entry.bib_number}
                           </span>
                           <span>{entry.participants.teams?.name}</span>
                         </div>
                       </TableCell>
+                      {/* carriageを表示 */}
                       <TableCell className="text-center text-xs text-gray-600">
-                        {entry.participants.dan_rank}
+                        {entry.participants.carriage}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-2xl font-bold text-[#CD2C58]">
+                        <span className="text-2xl font-bold text-[#86AC41]">
                           {scoreVal !== null ? scoreVal : '-'}
                         </span>
-                        <span className="text-xs text-gray-400 ml-1 font-medium">
+                        <span className="text-xs text-[#7DA3A1] ml-1 font-medium">
                           / {maxScore}
                         </span>
                       </TableCell>

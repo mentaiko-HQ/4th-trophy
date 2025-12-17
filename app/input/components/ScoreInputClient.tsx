@@ -15,9 +15,6 @@ export type PlayerData = {
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
-  status_am1: string;
-  status_am2: string;
-  status_pm1: string;
 };
 
 type Props = {
@@ -26,7 +23,7 @@ type Props = {
 };
 
 // --------------------------------------------------
-// モーダルコンポーネント（5人の成績入力フォーム）
+// モーダルコンポーネント
 // --------------------------------------------------
 const ScoreInputModal = ({
   label,
@@ -43,11 +40,9 @@ const ScoreInputModal = ({
   onClose: () => void;
   onSaveSuccess: () => void;
 }) => {
-  // スコア管理用State
   const [scores, setScores] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 初期値の設定
   useEffect(() => {
     const initialScores: Record<string, number> = {};
     groupPlayers.forEach((p) => {
@@ -109,28 +104,28 @@ const ScoreInputModal = ({
   const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#324857]/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* モーダルヘッダー */}
-        <div className="flex justify-between items-center bg-[#FFE6D4] px-6 py-4 border-b border-[#FFC69D]">
+        {/* モーダルヘッダー: #34675C (Deep Green) */}
+        <div className="flex justify-between items-center bg-[#34675C] px-6 py-4 border-b border-[#324857]/10">
           <div>
-            <h3 className="text-xl font-bold text-[#CD2C58]">
-              {label} - 第{pairIndex}組-{shajo} 入力
+            <h3 className="text-xl font-bold text-white">
+              {label} - 第{pairIndex}組-{shajo}
             </h3>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-[#7DA3A1] text-white/80">
               範囲: 0 〜 {maxScore}中
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-[#CD2C58] hover:text-[#E06B80] p-2 font-bold"
+            className="text-white hover:text-[#86AC41] p-2 font-bold transition-colors"
           >
             ✕ 閉じる
           </button>
         </div>
 
         {/* モーダルボディ */}
-        <div className="p-6 overflow-y-auto flex-1 bg-white">
+        <div className="p-6 overflow-y-auto flex-1 bg-[#F0F4F5]">
           <form id="score-form" onSubmit={handleSubmit} className="space-y-6">
             {groupPlayers.map((player) => {
               let orderNumber: number | null = null;
@@ -141,20 +136,20 @@ const ScoreInputModal = ({
               return (
                 <div
                   key={player.id}
-                  className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+                  className="bg-white p-4 rounded-lg border border-[#7DA3A1]/30 shadow-sm"
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <span className="inline-block bg-[#FFE6D4] text-[#CD2C58] text-xs font-bold px-2 py-0.5 rounded mr-2">
+                      <span className="inline-block bg-[#324857] text-white text-xs font-bold px-2 py-0.5 rounded mr-2">
                         立順: {orderNumber ?? '-'}
                       </span>
-                      <span className="inline-block bg-gray-100 text-gray-600 text-xs font-bold px-2 py-0.5 rounded">
+                      <span className="inline-block bg-[#7DA3A1]/20 text-[#324857] text-xs font-bold px-2 py-0.5 rounded border border-[#7DA3A1]/30">
                         No.{player.bib_number}
                       </span>
-                      <div className="font-bold text-lg mt-1 text-gray-800">
+                      <div className="font-bold text-lg mt-1 text-[#324857]">
                         {player.player_name}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[#7DA3A1] font-bold">
                         {player.team_name}
                       </div>
                     </div>
@@ -173,8 +168,8 @@ const ScoreInputModal = ({
                             flex-1 min-w-[3rem] h-12 rounded-lg font-bold text-lg transition-all
                             ${
                               isSelected
-                                ? 'bg-[#CD2C58] text-white shadow-md ring-2 ring-[#E06B80] scale-105'
-                                : 'bg-white text-gray-600 border border-gray-200 hover:bg-[#FFE6D4] hover:text-[#CD2C58]'
+                                ? 'bg-[#86AC41] text-white shadow-md ring-2 ring-[#34675C] scale-105'
+                                : 'bg-white text-[#324857] border border-[#7DA3A1]/50 hover:bg-[#7DA3A1]/20'
                             }
                           `}
                         >
@@ -189,12 +184,12 @@ const ScoreInputModal = ({
           </form>
         </div>
 
-        {/* モーダルフッター */}
-        <div className="bg-[#FFE6D4] px-6 py-4 border-t border-[#FFC69D] flex justify-between items-center">
-          <span className="text-sm font-bold text-gray-700">
+        {/* モーダルフッター: #324857 (Dark Slate) */}
+        <div className="bg-white px-6 py-4 border-t border-[#7DA3A1]/30 flex justify-between items-center">
+          <span className="text-sm font-bold text-[#324857]">
             入力状況:{' '}
             <span
-              className={isAllSelected ? 'text-[#CD2C58]' : 'text-gray-700'}
+              className={isAllSelected ? 'text-[#86AC41]' : 'text-[#324857]'}
             >
               {Object.keys(scores).length}
             </span>{' '}
@@ -204,7 +199,7 @@ const ScoreInputModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 font-bold hover:bg-white/50 rounded-lg transition-colors"
+              className="px-4 py-2 text-[#7DA3A1] font-bold hover:bg-[#F0F4F5] rounded-lg transition-colors"
             >
               キャンセル
             </button>
@@ -216,8 +211,8 @@ const ScoreInputModal = ({
                         px-6 py-2 rounded-lg font-bold text-white shadow-sm transition-all
                         ${
                           isAllSelected && !isSubmitting
-                            ? 'bg-[#CD2C58] hover:bg-[#E06B80] hover:shadow-md'
-                            : 'bg-gray-400 cursor-not-allowed'
+                            ? 'bg-[#34675C] hover:bg-[#86AC41] hover:shadow-md'
+                            : 'bg-gray-300 cursor-not-allowed'
                         }
                     `}
             >
@@ -267,12 +262,12 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
   const getTabClass = (tabName: string) => {
     const baseClass =
       'flex-1 py-4 text-center font-bold text-sm sm:text-base transition-all duration-200 border-b-4 outline-none';
-    // アクティブ: メインカラーの枠線と文字、背景は白
+    // アクティブ: #34675C
     const activeClass =
-      'border-[#CD2C58] text-[#CD2C58] bg-white shadow-sm z-10 relative';
-    // 非アクティブ: グレー文字、ホバー時に薄い背景色
+      'border-[#34675C] text-[#34675C] bg-white shadow-sm z-10 relative rounded-t-lg';
+    // 非アクティブ
     const inactiveClass =
-      'border-transparent text-gray-500 hover:text-[#CD2C58] hover:bg-[#FFE6D4]';
+      'border-transparent text-[#7DA3A1] hover:text-[#34675C] hover:bg-[#7DA3A1]/10';
     return `${baseClass} ${
       currentTab === tabName ? activeClass : inactiveClass
     }`;
@@ -281,22 +276,22 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
   return (
     <div className="max-w-3xl mx-auto pb-10">
       {/* タブナビゲーション */}
-      <div className="flex bg-[#FFE6D4] p-1 rounded-t-xl overflow-hidden border-b border-[#FFC69D] mb-6">
+      <div className="flex bg-[#7DA3A1]/20 p-1 rounded-t-xl overflow-hidden border-b border-[#7DA3A1]/30 mb-6">
         <button
           onClick={() => handleTabChange('am1')}
-          className={`rounded-t-lg ${getTabClass('am1')}`}
+          className={getTabClass('am1')}
         >
           午前1
         </button>
         <button
           onClick={() => handleTabChange('am2')}
-          className={`rounded-t-lg ${getTabClass('am2')}`}
+          className={getTabClass('am2')}
         >
           午前2
         </button>
         <button
           onClick={() => handleTabChange('pm1')}
-          className={`rounded-t-lg ${getTabClass('pm1')}`}
+          className={getTabClass('pm1')}
         >
           午後1
         </button>
@@ -319,19 +314,19 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
           return (
             <div
               key={groupIndex}
-              className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white border border-[#7DA3A1]/30 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 {/* 左側：グループ情報 */}
                 <div className="flex-1 w-full">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-bold text-gray-800 border-l-4 border-[#CD2C58] pl-3">
+                    <h3 className="text-lg font-bold text-[#324857] border-l-4 border-[#86AC41] pl-3">
                       第{pairIndex}組-{shajo}
                     </h3>
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                         isComplete
-                          ? 'bg-[#FFE6D4] text-[#CD2C58]'
+                          ? 'bg-[#86AC41]/20 text-[#34675C]'
                           : 'bg-gray-100 text-gray-500'
                       }`}
                     >
@@ -341,7 +336,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     </span>
                   </div>
 
-                  <div className="text-sm text-gray-500 pl-3 truncate">
+                  <div className="text-sm text-[#7DA3A1] pl-3 truncate font-medium">
                     {group.map((p) => p.player_name).join(', ')}
                   </div>
                 </div>
@@ -353,8 +348,8 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     w-full sm:w-auto px-6 py-3 rounded-lg font-bold text-white transition-all shadow-sm flex items-center justify-center gap-2
                     ${
                       isComplete
-                        ? 'bg-[#E06B80] hover:bg-[#CD2C58]'
-                        : 'bg-[#CD2C58] hover:bg-[#E06B80]'
+                        ? 'bg-[#34675C] hover:bg-[#324857]'
+                        : 'bg-[#86AC41] hover:bg-[#34675C]'
                     }
                   `}
                 >
@@ -374,7 +369,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
         })}
 
         {playerGroups.length === 0 && (
-          <div className="text-center py-10 text-gray-500 bg-white rounded-xl border border-dashed border-[#FFC69D]">
+          <div className="text-center py-10 text-[#7DA3A1] bg-white rounded-xl border border-dashed border-[#7DA3A1]/50">
             表示対象の選手がいません
           </div>
         )}

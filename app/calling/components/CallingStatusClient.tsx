@@ -22,27 +22,27 @@ type Props = {
   currentTab: string;
 };
 
-// ステータス定義
+// ステータス定義 (色調整)
 const STATUS_OPTIONS = [
   {
     value: 'waiting',
     label: '待機',
-    color: 'bg-gray-100 text-gray-600 border-gray-200',
+    color: 'bg-[#F0F4F5] text-[#7DA3A1] border-[#7DA3A1]/30',
   },
   {
     value: 'called',
     label: '呼出',
-    color: 'bg-[#CD2C58] text-white border-[#CD2C58] animate-pulse',
+    color: 'bg-[#86AC41] text-white border-[#86AC41] animate-pulse shadow-md',
   },
   {
     value: 'shooting',
     label: '行射',
-    color: 'bg-blue-600 text-white border-blue-600',
+    color: 'bg-[#34675C] text-white border-[#34675C]',
   },
   {
     value: 'finished',
     label: '終了',
-    color: 'bg-green-600 text-white border-green-600',
+    color: 'bg-[#324857] text-white border-[#324857]',
   },
 ] as const;
 
@@ -52,7 +52,6 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     null
   );
 
-  // 5人ごとに分割
   const chunkArray = <T,>(array: T[], size: number): T[][] => {
     const chunks: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
@@ -62,7 +61,6 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
   };
   const playerGroups = chunkArray(players, 5);
 
-  // タブ設定
   let targetStatusColumn = 'status_am1';
   let targetOrderKey: keyof PlayerData = 'order_am1';
 
@@ -75,7 +73,6 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     targetOrderKey = 'order_pm1';
   }
 
-  // ステータス更新処理（グループ一括）
   const handleStatusChange = async (
     groupPlayers: PlayerData[],
     newStatus: string,
@@ -85,18 +82,13 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     const supabase = createClient();
 
     try {
-      // グループ全員のIDを取得
       const ids = groupPlayers.map((p) => p.id);
-
-      // 一括アップデート
       const { error } = await supabase
         .from('entries')
         .update({ [targetStatusColumn]: newStatus })
         .in('id', ids);
 
       if (error) throw error;
-
-      // 画面リフレッシュ
       router.refresh();
     } catch (error) {
       console.error('Update error:', error);
@@ -106,7 +98,6 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     }
   };
 
-  // タブ切り替え
   const handleTabChange = (tab: string) => {
     router.push(`/calling?tab=${tab}`);
   };
@@ -115,9 +106,9 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     const baseClass =
       'flex-1 py-4 text-center font-bold text-sm sm:text-base transition-all duration-200 border-b-4 outline-none';
     const activeClass =
-      'border-[#CD2C58] text-[#CD2C58] bg-white shadow-sm z-10 relative';
+      'border-[#34675C] text-[#34675C] bg-white shadow-sm z-10 relative rounded-t-lg';
     const inactiveClass =
-      'border-transparent text-gray-500 hover:text-[#CD2C58] hover:bg-[#FFE6D4]';
+      'border-transparent text-[#7DA3A1] hover:text-[#34675C] hover:bg-[#7DA3A1]/10';
     return `${baseClass} ${
       currentTab === tabName ? activeClass : inactiveClass
     }`;
@@ -125,23 +116,22 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto pb-10">
-      {/* タブナビゲーション */}
-      <div className="flex bg-[#FFE6D4] p-1 rounded-t-xl overflow-hidden border-b border-[#FFC69D] mb-6">
+      <div className="flex bg-[#7DA3A1]/20 p-1 rounded-t-xl overflow-hidden border-b border-[#7DA3A1]/30 mb-6">
         <button
           onClick={() => handleTabChange('am1')}
-          className={`rounded-t-lg ${getTabClass('am1')}`}
+          className={getTabClass('am1')}
         >
           午前1
         </button>
         <button
           onClick={() => handleTabChange('am2')}
-          className={`rounded-t-lg ${getTabClass('am2')}`}
+          className={getTabClass('am2')}
         >
           午前2
         </button>
         <button
           onClick={() => handleTabChange('pm1')}
-          className={`rounded-t-lg ${getTabClass('pm1')}`}
+          className={getTabClass('pm1')}
         >
           午後1
         </button>
@@ -149,28 +139,26 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
 
       <div className="space-y-4">
         {playerGroups.map((group, groupIndex) => {
-          // グループの代表ステータスを取得（基本は全員同じはずだが、先頭の人の値を使用）
           const currentStatusVal =
             (group[0] as any)[targetStatusColumn] || 'waiting';
           const pairIndex = Math.floor(groupIndex / 2) + 1;
           const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
 
-          // 立順の開始・終了番号
           const startOrder = (group[0] as any)[targetOrderKey];
           const endOrder = (group[group.length - 1] as any)[targetOrderKey];
 
           return (
             <div
               key={groupIndex}
-              className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row"
+              className="bg-white border border-[#7DA3A1]/30 rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row"
             >
               {/* 左側：メンバーリストエリア */}
-              <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-gray-100">
+              <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-[#7DA3A1]/20">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="bg-[#FFE6D4] text-[#CD2C58] text-xs font-bold px-3 py-1 rounded-full">
+                  <span className="bg-[#34675C] text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
                     第{pairIndex}組-{shajo}
                   </span>
-                  <span className="text-sm font-bold text-gray-500">
+                  <span className="text-sm font-bold text-[#7DA3A1]">
                     立順: {startOrder ?? '?'} 〜 {endOrder ?? '?'}
                   </span>
                 </div>
@@ -178,16 +166,16 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
                 <ul className="space-y-2">
                   {group.map((p, idx) => (
                     <li key={p.id} className="flex items-center text-sm">
-                      <span className="w-6 text-center font-bold text-gray-400 mr-2">
+                      <span className="w-6 text-center font-bold text-[#7DA3A1] mr-2 bg-[#F0F4F5] rounded">
                         {idx + 1}
                       </span>
-                      <span className="w-16 font-mono text-gray-500 text-xs mr-2">
+                      <span className="w-16 font-mono text-[#324857] text-xs mr-2 font-bold">
                         ID:{p.bib_number}
                       </span>
-                      <span className="font-bold text-gray-800 mr-2">
+                      <span className="font-bold text-[#324857] mr-2">
                         {p.player_name}
                       </span>
-                      <span className="text-xs text-gray-400 truncate flex-1 text-right">
+                      <span className="text-xs text-[#7DA3A1] truncate flex-1 text-right">
                         {p.team_name}
                       </span>
                     </li>
@@ -196,14 +184,13 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
               </div>
 
               {/* 右側：ステータス操作エリア */}
-              <div className="w-full md:w-48 bg-gray-50 p-4 flex flex-col justify-center gap-2">
+              <div className="w-full md:w-48 bg-[#F0F4F5] p-4 flex flex-col justify-center gap-2">
                 <div className="text-center mb-1">
-                  <span className="text-xs font-bold text-gray-400">
+                  <span className="text-xs font-bold text-[#7DA3A1]">
                     現在の状態
                   </span>
                 </div>
 
-                {/* 現在のステータス表示 */}
                 <div
                   className={`text-center py-2 rounded-lg font-bold text-lg mb-2 shadow-sm border ${
                     STATUS_OPTIONS.find((o) => o.value === currentStatusVal)
@@ -216,7 +203,6 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
                   }
                 </div>
 
-                {/* 切り替えボタン群 */}
                 <div className="grid grid-cols-2 gap-2">
                   {STATUS_OPTIONS.map((option) => (
                     <button
@@ -229,8 +215,8 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
                         py-2 px-1 rounded text-xs font-bold border transition-all
                         ${
                           currentStatusVal === option.value
-                            ? 'opacity-50 cursor-default bg-gray-200 text-gray-500 border-gray-200' // 選択中は無効化
-                            : 'bg-white text-gray-600 border-gray-300 hover:bg-white hover:text-[#CD2C58] hover:border-[#CD2C58] shadow-sm'
+                            ? 'opacity-50 cursor-default bg-gray-200 text-gray-500 border-gray-200'
+                            : 'bg-white text-[#324857] border-[#7DA3A1]/30 hover:bg-white hover:text-[#86AC41] hover:border-[#86AC41] shadow-sm'
                         }
                       `}
                     >
@@ -244,7 +230,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
         })}
 
         {playerGroups.length === 0 && (
-          <div className="text-center py-12 text-gray-500 bg-white rounded-xl border border-dashed border-[#FFC69D]">
+          <div className="text-center py-12 text-[#7DA3A1] bg-white rounded-xl border border-dashed border-[#7DA3A1]/50">
             表示対象の選手がいません
           </div>
         )}
