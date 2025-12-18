@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Trophy, Target, Loader2, Plus, Minus } from 'lucide-react';
 
-// 【修正箇所】export を明示して外部から参照可能にする
+// export を明示して外部から参照可能にする
 export type PlayerData = {
   id: string;
   team_name: string;
@@ -426,11 +426,10 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                 </div>
               </div>
 
-              {/* 3行目: 決勝区分選択エリア (修正箇所) */}
-              <div className="p-3 bg-white border-t border-[#E8ECEF] grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 射詰エリア */}
-                <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[#E8ECEF] bg-gray-50/50">
-                  {/* 射詰ボタン (小さく) */}
+              {/* 3行目: 決勝区分選択エリア */}
+              <div className="p-3 bg-white border-t border-[#E8ECEF]">
+                <div className="flex flex-wrap items-center justify-center gap-4 p-3 rounded-lg border border-[#E8ECEF] bg-gray-50/50">
+                  {/* 1. 射詰ボタン */}
                   <button
                     onClick={() =>
                       handlePlayoffSelect(
@@ -455,10 +454,35 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     射詰
                   </button>
 
-                  {/* 射詰的中数カウンター */}
-                  <div className="flex flex-col items-end">
-                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-1 mr-1">
-                      射詰的中数
+                  {/* 2. 遠近ボタン */}
+                  <button
+                    onClick={() =>
+                      handlePlayoffSelect(
+                        player.id,
+                        player.playoff_type === 'enkin' ? null : 'enkin'
+                      )
+                    }
+                    disabled={loadingId === player.id}
+                    className={`
+                        py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
+                        ${
+                          player.playoff_type === 'enkin'
+                            ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
+                            : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
+                        }
+                      `}
+                  >
+                    {loadingId === player.id &&
+                    player.playoff_type !== 'enkin' ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : null}
+                    遠近
+                  </button>
+
+                  {/* 3. 射詰的中数カウンター */}
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      的中
                     </span>
                     <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
                       <button
@@ -494,39 +518,11 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                       </button>
                     </div>
                   </div>
-                </div>
 
-                {/* 遠近エリア */}
-                <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[#E8ECEF] bg-gray-50/50">
-                  {/* 遠近ボタン (小さく) */}
-                  <button
-                    onClick={() =>
-                      handlePlayoffSelect(
-                        player.id,
-                        player.playoff_type === 'enkin' ? null : 'enkin'
-                      )
-                    }
-                    disabled={loadingId === player.id}
-                    className={`
-                        py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
-                        ${
-                          player.playoff_type === 'enkin'
-                            ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
-                            : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
-                        }
-                      `}
-                  >
-                    {loadingId === player.id &&
-                    player.playoff_type !== 'enkin' ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                    ) : null}
-                    遠近
-                  </button>
-
-                  {/* 射遠順位カウンター */}
-                  <div className="flex flex-col items-end">
-                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-1 mr-1">
-                      射遠順位
+                  {/* 4. 射遠順位カウンター */}
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      順位
                     </span>
                     <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
                       <button
