@@ -5,6 +5,7 @@ import {
   Trophy,
   Target,
   Filter,
+  ChevronRight,
   Search,
   X,
   Medal,
@@ -45,22 +46,18 @@ interface ScoreListProps {
 }
 
 export default function ScoreList({ players }: ScoreListProps) {
-  // タブの状態管理
-  const [activeTab, setActiveTab] = useState<'total' | 'am1' | 'am2' | 'pm1'>(
-    'total'
-  );
+  // タブの状態管理 ('order_list' を追加し、初期値に設定)
+  const [activeTab, setActiveTab] = useState<
+    'order_list' | 'total' | 'am1' | 'am2' | 'pm1'
+  >('order_list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ヘルプモーダルの表示状態
   const [showHelp, setShowHelp] = useState(false);
 
-  // スコア表示用のヘルパー関数
   const renderScore = (score: number | null | undefined, maxScore: number) => {
     if (score == null) return <span className="text-gray-400">-</span>;
-
     const isMax = score === maxScore;
-
     return (
       <div className="flex items-center justify-center gap-1">
         <span className="font-bold">{score}中</span>
@@ -93,10 +90,17 @@ export default function ScoreList({ players }: ScoreListProps) {
       });
     }
 
-    // 2. タブごとのソート（立順の昇順）
+    // 2. タブごとのソート
     const sortedResult = [...result];
 
     switch (activeTab) {
+      case 'order_list': // 立順表: bib_number 昇順
+        sortedResult.sort((a, b) => {
+          const numA = Number(a.bib_number);
+          const numB = Number(b.bib_number);
+          return numA - numB;
+        });
+        break;
       case 'am1':
         sortedResult.sort((a, b) => {
           const orderA = a.order_am1 ?? Number.MAX_SAFE_INTEGER;
@@ -143,7 +147,7 @@ export default function ScoreList({ players }: ScoreListProps) {
 
   return (
     <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800 relative">
-      {/* ヘルプボタンエリア (画面右上) */}
+      {/* ヘルプボタンエリア */}
       <div className="flex justify-end mb-3 pt-2 px-1">
         <button
           onClick={() => setShowHelp(true)}
@@ -155,40 +159,51 @@ export default function ScoreList({ players }: ScoreListProps) {
       </div>
 
       {/* タブナビゲーション */}
-      <div className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200">
+      <div className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200 overflow-x-auto">
+        {/* 立順表タブ (最左端に追加) */}
+        <button
+          onClick={() => setActiveTab('order_list')}
+          className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+            activeTab === 'order_list'
+              ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          立順表
+        </button>
         <button
           onClick={() => setActiveTab('am1')}
-          className={`flex-1 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 ${
+          className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
             activeTab === 'am1'
               ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
           }`}
         >
-          午前1
+          午前1立目
         </button>
         <button
           onClick={() => setActiveTab('am2')}
-          className={`flex-1 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 ${
+          className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
             activeTab === 'am2'
               ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
           }`}
         >
-          午前2
+          午前2立目
         </button>
         <button
           onClick={() => setActiveTab('pm1')}
-          className={`flex-1 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 ${
+          className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
             activeTab === 'pm1'
               ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
           }`}
         >
-          午後1
+          午後1立目
         </button>
         <button
           onClick={() => setActiveTab('total')}
-          className={`flex-1 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 ${
+          className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
             activeTab === 'total'
               ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -252,7 +267,67 @@ export default function ScoreList({ players }: ScoreListProps) {
 
         {/* 選手リスト表示 */}
         {filteredPlayers.map((player) => {
-          // 予選タブの表示ロジック
+          // =================================================================
+          // [新規] 立順表タブの表示ロジック
+          // =================================================================
+          if (activeTab === 'order_list') {
+            return (
+              <div
+                key={player.id}
+                className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
+              >
+                {/* 1行目: ID(No.), 選手名, チーム名 */}
+                <div className="p-4 border-b border-[#E8ECEF]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
+                      No.{player.bib_number}
+                    </span>
+                    <div className="font-bold text-[#324857] truncate text-lg">
+                      {player.player_name}
+                    </div>
+                  </div>
+                  <div className="text-xs text-[#7B8B9A] font-medium truncate pl-1">
+                    {player.team_name}
+                  </div>
+                </div>
+
+                {/* 2行目: 午前1, 午前2, 午後の立順を横並び表示 */}
+                <div className="flex bg-[#F8FAFC] divide-x divide-[#E8ECEF]">
+                  {/* 午前1 */}
+                  <div className="flex-1 py-3 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      午前1立順
+                    </span>
+                    <span className="text-sm font-bold text-[#324857]">
+                      {displayOrder(player.order_am1)}
+                    </span>
+                  </div>
+                  {/* 午前2 */}
+                  <div className="flex-1 py-3 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      午前2立順
+                    </span>
+                    <span className="text-sm font-bold text-[#324857]">
+                      {displayOrder(player.order_am2)}
+                    </span>
+                  </div>
+                  {/* 午後 */}
+                  <div className="flex-1 py-3 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      午後立順
+                    </span>
+                    <span className="text-sm font-bold text-[#324857]">
+                      {displayOrder(player.order_pm1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // =================================================================
+          // 予選タブ（午前1/午前2/午後1）の表示ロジック
+          // =================================================================
           if (activeTab !== 'total') {
             const data = getCurrentTabData(player);
             // タブに応じた最大スコアを設定（午後1は4、それ以外は2）
@@ -306,7 +381,9 @@ export default function ScoreList({ players }: ScoreListProps) {
             );
           }
 
+          // =================================================================
           // 総合成績タブの表示ロジック (既存維持)
+          // =================================================================
           return (
             <div
               key={player.id}
@@ -328,7 +405,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                       {player.team_name}
                     </div>
                   </div>
-                  {/* ChevronRight 削除 */}
                 </div>
               </div>
 
@@ -336,7 +412,7 @@ export default function ScoreList({ players }: ScoreListProps) {
               <div className="flex border-t border-[#E8ECEF] bg-white divide-x divide-[#E8ECEF]">
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
                   <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                    午前1
+                    午前1立目
                   </span>
                   <span className="text-sm font-bold text-[#324857]">
                     {renderScore(player.score_am1, 2)}
@@ -344,7 +420,7 @@ export default function ScoreList({ players }: ScoreListProps) {
                 </div>
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
                   <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                    午前2
+                    午前2立目
                   </span>
                   <span className="text-sm font-bold text-[#324857]">
                     {renderScore(player.score_am2, 2)}
@@ -352,7 +428,7 @@ export default function ScoreList({ players }: ScoreListProps) {
                 </div>
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
                   <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                    午後1
+                    午後1立目
                   </span>
                   <span className="text-sm font-bold text-[#324857]">
                     {renderScore(player.score_pm1, 4)}
@@ -502,6 +578,15 @@ export default function ScoreList({ players }: ScoreListProps) {
                   表示について
                 </h4>
                 <ul className="space-y-2 ml-1">
+                  <li className="flex items-start">
+                    <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                    <span>
+                      <span className="font-bold text-gray-900">
+                        立順表タブ:
+                      </span>{' '}
+                      ID（ゼッケン）順に表示されます。
+                    </span>
+                  </li>
                   <li className="flex items-start">
                     <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
                     <span>
