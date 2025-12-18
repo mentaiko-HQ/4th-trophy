@@ -3,9 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { Trophy, Target, Loader2, Plus, Minus } from 'lucide-react';
+import {
+  Trophy,
+  Target,
+  Loader2,
+  Plus,
+  Minus,
+  Edit2,
+  Check,
+  X,
+} from 'lucide-react';
 
-// export を明示して外部から参照可能にする
+// 外部から参照できるよう export を付与
 export type PlayerData = {
   id: string;
   team_name: string;
@@ -237,50 +246,99 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(
     null
   );
+
+  // 編集中のデータを保持するState
+  // { [playerId]: PlayerData }
+  const [editingData, setEditingData] = useState<Record<string, PlayerData>>(
+    {}
+  );
+
+  // 保存処理中のID
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const handlePlayoffSelect = async (
-    playerId: string,
-    type: 'izume' | 'enkin' | null
-  ) => {
-    setLoadingId(playerId);
-    const supabase = createClient();
-    try {
-      const { error } = await supabase
-        .from('entries')
-        .update({ playoff_type: type })
-        .eq('id', playerId);
-
-      if (error) throw error;
-      router.refresh();
-    } catch (error) {
-      console.error('Update error:', error);
-      alert('更新に失敗しました');
-    } finally {
-      setLoadingId(null);
-    }
+  // 編集開始ハンドラ
+  const startEditing = (player: PlayerData) => {
+    setEditingData((prev) => ({
+      ...prev,
+      [player.id]: { ...player }, // 現在のデータをコピーして編集用にする
+    }));
   };
 
-  const handleUpdateValue = async (
+  // 編集キャンセルハンドラ（必要に応じて）
+  const cancelEditing = (playerId: string) => {
+    setEditingData((prev) => {
+      const next = { ...prev };
+      delete next[playerId];
+      return next;
+    });
+  };
+
+  // 編集中のデータをローカルで更新するハンドラ
+  // 決勝区分（射詰/遠近）のトグル
+  const toggleLocalPlayoffType = (
     playerId: string,
-    column: 'semifinal_score' | 'semifinal_results',
-    currentValue: number | null,
+    type: 'izume' | 'enkin'
+  ) => {
+    setEditingData((prev) => {
+      const current = prev[playerId];
+      if (!current) return prev;
+
+      const newType = current.playoff_type === type ? null : type;
+      return {
+        ...prev,
+        [playerId]: { ...current, playoff_type: newType },
+      };
+    });
+  };
+
+  // 数値の更新（射詰的中数/射遠順位）
+  const updateLocalValue = (
+    playerId: string,
+    field: 'semifinal_score' | 'semifinal_results',
     delta: number
   ) => {
+    setEditingData((prev) => {
+      const current = prev[playerId];
+      if (!current) return prev;
+
+      const baseVal = current[field] ?? 0;
+      const newVal = Math.max(0, baseVal + delta);
+      return {
+        ...prev,
+        [playerId]: { ...current, [field]: newVal },
+      };
+    });
+  };
+
+  // 決定ボタン押下時：DB保存処理
+  const savePlayoffData = async (playerId: string) => {
+    const dataToSave = editingData[playerId];
+    if (!dataToSave) return;
+
     setLoadingId(playerId);
     const supabase = createClient();
-
-    const baseValue = currentValue ?? 0;
-    const newValue = Math.max(0, baseValue + delta);
 
     try {
       const { error } = await supabase
         .from('entries')
-        .update({ [column]: newValue })
+        .update({
+          playoff_type: dataToSave.playoff_type,
+          semifinal_score: dataToSave.semifinal_score,
+          semifinal_results: dataToSave.semifinal_results,
+        })
         .eq('id', playerId);
 
       if (error) throw error;
-      router.refresh();
+
+      // 保存成功
+      router.refresh(); // 最新データを再取得
+
+      // 編集モード終了
+      setEditingData((prev) => {
+        const next = { ...prev };
+        delete next[playerId];
+        return next;
+      });
     } catch (error) {
       console.error('Update error:', error);
       alert('更新に失敗しました');
@@ -361,207 +419,221 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
 
       {currentTab === 'final' ? (
         <div className="space-y-4">
-          {players.map((player) => (
-            <div
-              key={player.id}
-              className="bg-white border border-[#E8ECEF] rounded-xl shadow-sm overflow-hidden"
-            >
-              {/* 1行目 */}
-              <div className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3 flex-1">
-                  {player.provisional_ranking && (
-                    <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
-                      <span className="text-xs font-bold leading-none">
-                        Rank
-                      </span>
-                      <span className="text-lg font-bold leading-none">
-                        {player.provisional_ranking}
-                      </span>
-                    </div>
-                  )}
+          {players.map((originalPlayer) => {
+            // 編集中のデータがあればそれを使用、なければ元のデータを使用
+            const isEditing = !!editingData[originalPlayer.id];
+            const player = isEditing
+              ? editingData[originalPlayer.id]!
+              : originalPlayer;
+            const isLoading = loadingId === player.id;
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-bold bg-[#E8ECEF] text-[#7B8B9A] px-1.5 py-0.5 rounded">
-                        No.{player.bib_number}
-                      </span>
-                      <div className="font-bold text-[#324857] truncate text-lg">
-                        {player.player_name}
+            return (
+              <div
+                key={player.id}
+                className={`bg-white border rounded-xl shadow-sm overflow-hidden transition-all duration-200 ${
+                  isEditing
+                    ? 'border-[#34675C] ring-1 ring-[#34675C] shadow-md'
+                    : 'border-[#E8ECEF]'
+                }`}
+              >
+                {/* 1行目: 選手情報 + 合計的中数 */}
+                <div className="p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1 overflow-hidden">
+                    {/* Rank Badge */}
+                    {player.provisional_ranking && (
+                      <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
+                        <span className="text-xs font-bold leading-none">
+                          Rank
+                        </span>
+                        <span className="text-lg font-bold leading-none">
+                          {player.provisional_ranking}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Player Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-bold bg-[#E8ECEF] text-[#7B8B9A] px-1.5 py-0.5 rounded">
+                          No.{player.bib_number}
+                        </span>
+                        <div className="font-bold text-[#324857] truncate text-lg">
+                          {player.player_name}
+                        </div>
+                      </div>
+                      <div className="text-xs text-[#7B8B9A] truncate font-bold">
+                        {player.team_name}
                       </div>
                     </div>
-                    <div className="text-xs text-[#7B8B9A] truncate font-bold">
-                      {player.team_name}
+                  </div>
+
+                  {/* 合計的中数 */}
+                  <div className="flex flex-col items-end ml-2 flex-shrink-0">
+                    <div className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                      Total
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 2行目 */}
-              <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
-                <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
-                  <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-medium">
-                    <Target size={14} className="mr-1" />
-                    <span>合計的中数</span>
-                  </div>
-                  <div className="text-xl font-bold text-[#324857]">
-                    {player.total_score}
-                    <span className="text-xs font-normal text-[#7B8B9A] ml-1">
-                      中
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                  <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-medium">
-                    <Trophy size={14} className="mr-1" />
-                    <span>暫定順位</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-xl font-bold text-[#324857]">
-                      {player.provisional_ranking
-                        ? `${player.provisional_ranking}位`
-                        : '-'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3行目: 決勝区分選択エリア */}
-              <div className="p-3 bg-white border-t border-[#E8ECEF]">
-                <div className="flex flex-wrap items-center justify-center gap-4 p-3 rounded-lg border border-[#E8ECEF] bg-gray-50/50">
-                  {/* 1. 射詰ボタン */}
-                  <button
-                    onClick={() =>
-                      handlePlayoffSelect(
-                        player.id,
-                        player.playoff_type === 'izume' ? null : 'izume'
-                      )
-                    }
-                    disabled={loadingId === player.id}
-                    className={`
-                        py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
-                        ${
-                          player.playoff_type === 'izume'
-                            ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-sm'
-                            : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#CD2C58] hover:text-[#CD2C58]'
-                        }
-                      `}
-                  >
-                    {loadingId === player.id &&
-                    player.playoff_type !== 'izume' ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                    ) : null}
-                    射詰
-                  </button>
-
-                  {/* 2. 遠近ボタン */}
-                  <button
-                    onClick={() =>
-                      handlePlayoffSelect(
-                        player.id,
-                        player.playoff_type === 'enkin' ? null : 'enkin'
-                      )
-                    }
-                    disabled={loadingId === player.id}
-                    className={`
-                        py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
-                        ${
-                          player.playoff_type === 'enkin'
-                            ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
-                            : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
-                        }
-                      `}
-                  >
-                    {loadingId === player.id &&
-                    player.playoff_type !== 'enkin' ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                    ) : null}
-                    遠近
-                  </button>
-
-                  {/* 3. 射詰的中数カウンター */}
-                  <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                      的中
-                    </span>
-                    <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
-                      <button
-                        onClick={() =>
-                          handleUpdateValue(
-                            player.id,
-                            'semifinal_score',
-                            player.semifinal_score,
-                            -1
-                          )
-                        }
-                        disabled={loadingId === player.id}
-                        className="px-2 py-1 text-gray-500 hover:text-[#CD2C58] hover:bg-red-50 rounded-l-md disabled:opacity-50 h-full flex items-center justify-center"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <span className="w-8 text-center font-bold text-[#324857] text-sm">
-                        {player.semifinal_score ?? 0}
+                    <div className="text-xl font-bold text-[#324857]">
+                      {player.total_score}
+                      <span className="text-xs font-normal text-[#7B8B9A] ml-0.5">
+                        中
                       </span>
-                      <button
-                        onClick={() =>
-                          handleUpdateValue(
-                            player.id,
-                            'semifinal_score',
-                            player.semifinal_score,
-                            1
-                          )
-                        }
-                        disabled={loadingId === player.id}
-                        className="px-2 py-1 text-gray-500 hover:text-[#CD2C58] hover:bg-red-50 rounded-r-md disabled:opacity-50 h-full flex items-center justify-center"
-                      >
-                        <Plus size={12} />
-                      </button>
                     </div>
                   </div>
+                </div>
 
-                  {/* 4. 射遠順位カウンター */}
-                  <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                      順位
-                    </span>
-                    <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
+                {/* 3行目: 修正/決定ボタン & 決勝区分・カウンター入力エリア */}
+                <div className="p-3 bg-white border-t border-[#E8ECEF] flex items-center gap-3">
+                  {/* 左側: 修正/決定ボタン */}
+                  <div className="flex-shrink-0">
+                    {isEditing ? (
                       <button
-                        onClick={() =>
-                          handleUpdateValue(
-                            player.id,
-                            'semifinal_results',
-                            player.semifinal_results,
-                            -1
-                          )
-                        }
-                        disabled={loadingId === player.id}
-                        className="px-2 py-1 text-gray-500 hover:text-[#34675C] hover:bg-green-50 rounded-l-md disabled:opacity-50 h-full flex items-center justify-center"
+                        onClick={() => savePlayoffData(player.id)}
+                        disabled={isLoading}
+                        className="flex flex-col items-center justify-center w-16 h-16 bg-[#34675C] text-white rounded-lg shadow-sm hover:bg-[#2a524a] active:scale-95 transition-all disabled:opacity-50"
                       >
-                        <Minus size={12} />
+                        {isLoading ? (
+                          <Loader2 className="w-6 h-6 animate-spin mb-1" />
+                        ) : (
+                          <Check size={24} className="mb-1" />
+                        )}
+                        <span className="text-xs font-bold">決定</span>
                       </button>
-                      <span className="w-8 text-center font-bold text-[#324857] text-sm">
-                        {player.semifinal_results ?? 0}
+                    ) : (
+                      <button
+                        onClick={() => startEditing(player)}
+                        className="flex flex-col items-center justify-center w-16 h-16 bg-white text-[#34675C] border-2 border-[#34675C] rounded-lg shadow-sm hover:bg-[#34675C]/5 active:scale-95 transition-all"
+                      >
+                        <Edit2 size={24} className="mb-1" />
+                        <span className="text-xs font-bold">修正</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 右側: 入力エリア枠 */}
+                  <div
+                    className={`flex-1 flex flex-wrap items-center justify-center gap-4 p-2 rounded-lg border bg-gray-50/50 transition-colors ${
+                      isEditing
+                        ? 'border-[#34675C]/30 bg-white'
+                        : 'border-[#E8ECEF]'
+                    }`}
+                  >
+                    {/* グループ1: 方式選択 */}
+                    <div
+                      className={`flex flex-col items-center transition-opacity ${
+                        !isEditing ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                    >
+                      <span className="text-[10px] text-[#7B8B9A] font-bold mb-1">
+                        方式
                       </span>
-                      <button
-                        onClick={() =>
-                          handleUpdateValue(
-                            player.id,
-                            'semifinal_results',
-                            player.semifinal_results,
-                            1
-                          )
-                        }
-                        disabled={loadingId === player.id}
-                        className="px-2 py-1 text-gray-500 hover:text-[#34675C] hover:bg-green-50 rounded-r-md disabled:opacity-50 h-full flex items-center justify-center"
-                      >
-                        <Plus size={12} />
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() =>
+                            toggleLocalPlayoffType(player.id, 'izume')
+                          }
+                          disabled={!isEditing}
+                          className={`
+                                py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
+                                ${
+                                  player.playoff_type === 'izume'
+                                    ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-sm'
+                                    : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#CD2C58] hover:text-[#CD2C58]'
+                                }
+                              `}
+                        >
+                          射詰
+                        </button>
+                        <button
+                          onClick={() =>
+                            toggleLocalPlayoffType(player.id, 'enkin')
+                          }
+                          disabled={!isEditing}
+                          className={`
+                                py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
+                                ${
+                                  player.playoff_type === 'enkin'
+                                    ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
+                                    : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
+                                }
+                              `}
+                        >
+                          遠近
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* グループ2: 射詰的中数カウンター */}
+                    <div
+                      className={`flex flex-col items-center transition-opacity ${
+                        !isEditing ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                    >
+                      <span className="text-[10px] text-[#7B8B9A] font-bold mb-1">
+                        射詰的中
+                      </span>
+                      <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
+                        <button
+                          onClick={() =>
+                            updateLocalValue(player.id, 'semifinal_score', -1)
+                          }
+                          disabled={!isEditing}
+                          className="px-2 py-1 text-gray-500 hover:text-[#CD2C58] hover:bg-red-50 rounded-l-md disabled:opacity-50 h-full flex items-center justify-center"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className="w-8 text-center font-bold text-[#324857] text-sm">
+                          {player.semifinal_score ?? 0}
+                        </span>
+                        <button
+                          onClick={() =>
+                            updateLocalValue(player.id, 'semifinal_score', 1)
+                          }
+                          disabled={!isEditing}
+                          className="px-2 py-1 text-gray-500 hover:text-[#CD2C58] hover:bg-red-50 rounded-r-md disabled:opacity-50 h-full flex items-center justify-center"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* グループ3: 射遠順位カウンター */}
+                    <div
+                      className={`flex flex-col items-center transition-opacity ${
+                        !isEditing ? 'opacity-50 pointer-events-none' : ''
+                      }`}
+                    >
+                      <span className="text-[10px] text-[#7B8B9A] font-bold mb-1">
+                        射遠順位
+                      </span>
+                      <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
+                        <button
+                          onClick={() =>
+                            updateLocalValue(player.id, 'semifinal_results', -1)
+                          }
+                          disabled={!isEditing}
+                          className="px-2 py-1 text-gray-500 hover:text-[#34675C] hover:bg-green-50 rounded-l-md disabled:opacity-50 h-full flex items-center justify-center"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className="w-8 text-center font-bold text-[#324857] text-sm">
+                          {player.semifinal_results ?? 0}
+                        </span>
+                        <button
+                          onClick={() =>
+                            updateLocalValue(player.id, 'semifinal_results', 1)
+                          }
+                          disabled={!isEditing}
+                          className="px-2 py-1 text-gray-500 hover:text-[#34675C] hover:bg-green-50 rounded-r-md disabled:opacity-50 h-full flex items-center justify-center"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {players.length === 0 && (
             <div className="text-center py-10 text-[#7DA3A1]">
               データがありません
@@ -569,7 +641,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
           )}
         </div>
       ) : (
-        // 予選タブUI
+        // 予選タブUI (変更なし)
         <div className="space-y-4">
           {playerGroups.map((group, groupIndex) => {
             const filledCount = group.filter((p) => {
