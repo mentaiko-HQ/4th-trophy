@@ -3,15 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import {
-  Trophy,
-  Target,
-  ArrowUp,
-  ArrowDown,
-  Minus,
-  Loader2,
-} from 'lucide-react';
+import { Trophy, Target, Loader2, Plus, Minus } from 'lucide-react';
 
+// 【修正箇所】export を明示して外部から参照可能にする
 export type PlayerData = {
   id: string;
   team_name: string;
@@ -23,10 +17,11 @@ export type PlayerData = {
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
-  // 追加カラム
   total_score: number;
   provisional_ranking: number | null;
   playoff_type: 'izume' | 'enkin' | null;
+  semifinal_score: number | null;
+  semifinal_results: number | null;
 };
 
 type Props = {
@@ -35,7 +30,7 @@ type Props = {
 };
 
 // --------------------------------------------------
-// モーダルコンポーネント（予選入力用）
+// モーダルコンポーネント（予選スコア入力用）
 // --------------------------------------------------
 const ScoreInputModal = ({
   label,
@@ -96,11 +91,6 @@ const ScoreInputModal = ({
       });
 
       await Promise.all(updates);
-
-      const pairIndex = Math.floor(groupIndex / 2) + 1;
-      const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
-
-      // alert(`${label} 第${pairIndex}組-${shajo}のデータを保存しました`); // 頻繁なアラートはUXを損なうため削除またはトースト通知推奨
       onSaveSuccess();
       onClose();
     } catch (error) {
@@ -118,7 +108,6 @@ const ScoreInputModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#324857]/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* モーダルヘッダー */}
         <div className="flex justify-between items-center bg-[#34675C] px-6 py-4 border-b border-[#324857]/10">
           <div>
             <h3 className="text-xl font-bold text-white">
@@ -136,7 +125,6 @@ const ScoreInputModal = ({
           </button>
         </div>
 
-        {/* モーダルボディ */}
         <div className="p-6 overflow-y-auto flex-1 bg-[#F0F4F5]">
           <form id="score-form" onSubmit={handleSubmit} className="space-y-6">
             {groupPlayers.map((player) => {
@@ -167,7 +155,6 @@ const ScoreInputModal = ({
                     </div>
                   </div>
 
-                  {/* スコアボタン */}
                   <div className="flex gap-2 flex-wrap">
                     {Array.from({ length: maxScore + 1 }).map((_, score) => {
                       const isSelected = scores[player.id] === score;
@@ -196,7 +183,6 @@ const ScoreInputModal = ({
           </form>
         </div>
 
-        {/* モーダルフッター */}
         <div className="bg-white px-6 py-4 border-t border-[#7DA3A1]/30 flex justify-between items-center">
           <span className="text-sm font-bold text-[#324857]">
             入力状況:{' '}
@@ -244,16 +230,15 @@ const ScoreInputModal = ({
 };
 
 // --------------------------------------------------
-// メインコンポーネント
+// メインコンポーネント: 成績入力画面
 // --------------------------------------------------
 export default function ScoreInputClient({ players, currentTab }: Props) {
   const router = useRouter();
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(
     null
   );
-  const [loadingId, setLoadingId] = useState<string | null>(null); // 決勝区分更新中のID
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  // 決勝区分の更新処理
   const handlePlayoffSelect = async (
     playerId: string,
     type: 'izume' | 'enkin' | null
@@ -262,13 +247,39 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     const supabase = createClient();
     try {
       const { error } = await supabase
-        .from('entries') // 更新は entries テーブルに対して行う
+        .from('entries')
         .update({ playoff_type: type })
         .eq('id', playerId);
 
       if (error) throw error;
+      router.refresh();
+    } catch (error) {
+      console.error('Update error:', error);
+      alert('更新に失敗しました');
+    } finally {
+      setLoadingId(null);
+    }
+  };
 
-      // 成功したら画面をリフレッシュ
+  const handleUpdateValue = async (
+    playerId: string,
+    column: 'semifinal_score' | 'semifinal_results',
+    currentValue: number | null,
+    delta: number
+  ) => {
+    setLoadingId(playerId);
+    const supabase = createClient();
+
+    const baseValue = currentValue ?? 0;
+    const newValue = Math.max(0, baseValue + delta);
+
+    try {
+      const { error } = await supabase
+        .from('entries')
+        .update({ [column]: newValue })
+        .eq('id', playerId);
+
+      if (error) throw error;
       router.refresh();
     } catch (error) {
       console.error('Update error:', error);
@@ -288,7 +299,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
 
   const playerGroups = chunkArray(players, 5);
 
-  // タブ設定
   let label = '午前1';
   let maxScore = 2;
   if (currentTab === 'am2') {
@@ -299,7 +309,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     label = '午後1';
     maxScore = 4;
   }
-  // finalタブの場合のラベルは使用しないが設定
   if (currentTab === 'final') {
     label = '決勝';
     maxScore = 0;
@@ -323,7 +332,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
 
   return (
     <div className="max-w-3xl mx-auto pb-10">
-      {/* タブナビゲーション */}
       <div className="flex bg-[#7DA3A1]/20 p-1 rounded-t-xl overflow-hidden border-b border-[#7DA3A1]/30 mb-6">
         <button
           onClick={() => handleTabChange('am1')}
@@ -351,19 +359,16 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
         </button>
       </div>
 
-      {/* コンテンツエリア */}
       {currentTab === 'final' ? (
-        // ====================== 決勝タブ用のUI (カードリスト形式) ======================
         <div className="space-y-4">
           {players.map((player) => (
             <div
               key={player.id}
               className="bg-white border border-[#E8ECEF] rounded-xl shadow-sm overflow-hidden"
             >
-              {/* 1行目: 選手情報 */}
+              {/* 1行目 */}
               <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center space-x-3 flex-1">
-                  {/* 順位バッジ */}
                   {player.provisional_ranking && (
                     <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
                       <span className="text-xs font-bold leading-none">
@@ -375,7 +380,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     </div>
                   )}
 
-                  {/* 名前と所属 */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-xs font-bold bg-[#E8ECEF] text-[#7B8B9A] px-1.5 py-0.5 rounded">
@@ -392,9 +396,8 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                 </div>
               </div>
 
-              {/* 2行目: 成績情報（合計的中数・暫定順位） - 均等幅表示 */}
+              {/* 2行目 */}
               <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
-                {/* 合計的中数ブロック */}
                 <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
                   <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-medium">
                     <Target size={14} className="mr-1" />
@@ -408,7 +411,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                   </div>
                 </div>
 
-                {/* 暫定順位ブロック */}
                 <div className="flex-1 py-3 flex flex-col items-center justify-center">
                   <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-medium">
                     <Trophy size={14} className="mr-1" />
@@ -424,57 +426,143 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                 </div>
               </div>
 
-              {/* 3行目: 決勝区分選択ボタン (射詰 / 遠近) */}
-              <div className="p-3 bg-white border-t border-[#E8ECEF] grid grid-cols-2 gap-3">
-                {/* 射詰ボタン */}
-                <button
-                  onClick={() =>
-                    handlePlayoffSelect(
-                      player.id,
-                      player.playoff_type === 'izume' ? null : 'izume'
-                    )
-                  }
-                  disabled={loadingId === player.id}
-                  className={`
-                    py-2 rounded-lg font-bold text-sm transition-all border flex items-center justify-center
-                    ${
-                      player.playoff_type === 'izume'
-                        ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-md ring-2 ring-[#E06B80] ring-offset-1' // 選択中
-                        : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#CD2C58] hover:text-[#CD2C58]' // 未選択
+              {/* 3行目: 決勝区分選択エリア (修正箇所) */}
+              <div className="p-3 bg-white border-t border-[#E8ECEF] grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 射詰エリア */}
+                <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[#E8ECEF] bg-gray-50/50">
+                  {/* 射詰ボタン (小さく) */}
+                  <button
+                    onClick={() =>
+                      handlePlayoffSelect(
+                        player.id,
+                        player.playoff_type === 'izume' ? null : 'izume'
+                      )
                     }
-                  `}
-                >
-                  {loadingId === player.id &&
-                  player.playoff_type !== 'izume' ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                  ) : null}
-                  射詰
-                </button>
+                    disabled={loadingId === player.id}
+                    className={`
+                        py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
+                        ${
+                          player.playoff_type === 'izume'
+                            ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-sm'
+                            : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#CD2C58] hover:text-[#CD2C58]'
+                        }
+                      `}
+                  >
+                    {loadingId === player.id &&
+                    player.playoff_type !== 'izume' ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : null}
+                    射詰
+                  </button>
 
-                {/* 遠近ボタン */}
-                <button
-                  onClick={() =>
-                    handlePlayoffSelect(
-                      player.id,
-                      player.playoff_type === 'enkin' ? null : 'enkin'
-                    )
-                  }
-                  disabled={loadingId === player.id}
-                  className={`
-                    py-2 rounded-lg font-bold text-sm transition-all border flex items-center justify-center
-                    ${
-                      player.playoff_type === 'enkin'
-                        ? 'bg-[#34675C] text-white border-[#34675C] shadow-md ring-2 ring-[#7DA3A1] ring-offset-1' // 選択中
-                        : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]' // 未選択
+                  {/* 射詰的中数カウンター */}
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-1 mr-1">
+                      射詰的中数
+                    </span>
+                    <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
+                      <button
+                        onClick={() =>
+                          handleUpdateValue(
+                            player.id,
+                            'semifinal_score',
+                            player.semifinal_score,
+                            -1
+                          )
+                        }
+                        disabled={loadingId === player.id}
+                        className="px-2 py-1 text-gray-500 hover:text-[#CD2C58] hover:bg-red-50 rounded-l-md disabled:opacity-50 h-full flex items-center justify-center"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="w-8 text-center font-bold text-[#324857] text-sm">
+                        {player.semifinal_score ?? 0}
+                      </span>
+                      <button
+                        onClick={() =>
+                          handleUpdateValue(
+                            player.id,
+                            'semifinal_score',
+                            player.semifinal_score,
+                            1
+                          )
+                        }
+                        disabled={loadingId === player.id}
+                        className="px-2 py-1 text-gray-500 hover:text-[#CD2C58] hover:bg-red-50 rounded-r-md disabled:opacity-50 h-full flex items-center justify-center"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 遠近エリア */}
+                <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[#E8ECEF] bg-gray-50/50">
+                  {/* 遠近ボタン (小さく) */}
+                  <button
+                    onClick={() =>
+                      handlePlayoffSelect(
+                        player.id,
+                        player.playoff_type === 'enkin' ? null : 'enkin'
+                      )
                     }
-                  `}
-                >
-                  {loadingId === player.id &&
-                  player.playoff_type !== 'enkin' ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                  ) : null}
-                  遠近
-                </button>
+                    disabled={loadingId === player.id}
+                    className={`
+                        py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
+                        ${
+                          player.playoff_type === 'enkin'
+                            ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
+                            : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
+                        }
+                      `}
+                  >
+                    {loadingId === player.id &&
+                    player.playoff_type !== 'enkin' ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : null}
+                    遠近
+                  </button>
+
+                  {/* 射遠順位カウンター */}
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] text-[#7B8B9A] font-bold mb-1 mr-1">
+                      射遠順位
+                    </span>
+                    <div className="flex items-center bg-white rounded-md border border-[#E8ECEF] shadow-sm h-8">
+                      <button
+                        onClick={() =>
+                          handleUpdateValue(
+                            player.id,
+                            'semifinal_results',
+                            player.semifinal_results,
+                            -1
+                          )
+                        }
+                        disabled={loadingId === player.id}
+                        className="px-2 py-1 text-gray-500 hover:text-[#34675C] hover:bg-green-50 rounded-l-md disabled:opacity-50 h-full flex items-center justify-center"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="w-8 text-center font-bold text-[#324857] text-sm">
+                        {player.semifinal_results ?? 0}
+                      </span>
+                      <button
+                        onClick={() =>
+                          handleUpdateValue(
+                            player.id,
+                            'semifinal_results',
+                            player.semifinal_results,
+                            1
+                          )
+                        }
+                        disabled={loadingId === player.id}
+                        className="px-2 py-1 text-gray-500 hover:text-[#34675C] hover:bg-green-50 rounded-r-md disabled:opacity-50 h-full flex items-center justify-center"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -485,7 +573,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
           )}
         </div>
       ) : (
-        // ====================== 予選タブ用のUI (グループリスト形式) ======================
+        // 予選タブUI
         <div className="space-y-4">
           {playerGroups.map((group, groupIndex) => {
             const filledCount = group.filter((p) => {
@@ -560,7 +648,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
         </div>
       )}
 
-      {/* モーダル表示 */}
       {selectedGroupIndex !== null && (
         <ScoreInputModal
           label={label}
