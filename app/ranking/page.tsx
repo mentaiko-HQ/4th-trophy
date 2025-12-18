@@ -10,10 +10,8 @@ export default async function RankingPage() {
   const supabase = await createClient();
 
   // 1. データの取得とソート
-  // entries_with_ranking（ビュー）には新カラムが反映されていないため、
-  // entries テーブルから直接データを取得します。
   const { data: entries, error } = await supabase
-    .from('entries') // 修正: entries_with_ranking -> entries
+    .from('entries')
     .select(
       `
       *,
@@ -25,12 +23,11 @@ export default async function RankingPage() {
       )
     `
     )
-    // ソート順の変更:
-    // 優先順位1: 合計スコア (降順)
-    // 優先順位2: 射遠順位 (昇順, 値がある人が上)
-    // 優先順位3: ゼッケン番号 (昇順, 同順位内の並びを安定させるため)
+    // 優先順位1: 合計的中数 (降順)
     .order('total_score', { ascending: false })
+    // 優先順位2: 射遠順位 (昇順: 1位, 2位... NULLは後ろ)
     .order('semifinal_results', { ascending: true, nullsFirst: false })
+    // 優先順位3: ゼッケン番号 (昇順)
     .order('bib_number', { ascending: true });
 
   if (error) {
@@ -49,14 +46,10 @@ export default async function RankingPage() {
     );
   }
 
-  // 2. 最終順位の計算ロジック
-  // ソート済みのリストを上から走査して順位を割り振ります
-  let currentDisplayRank = 1;
-  let sameRankCount = 0;
-
-  // 比較用: 前の行のデータ
-  let prevTotalScore: number | null = null;
-  let prevSemifinalResult: number | null = null;
+  // 2. 順位計算ロジック
+  let currentProvRank = 1;
+  let sameProvRankCount = 0;
+  let prevScore: number | null = null;
 
   const players: PlayerData[] = (entries || []).map(
     (entry: any, index: number) => {
@@ -64,47 +57,41 @@ export default async function RankingPage() {
       const teamName = entry.participants?.teams?.name ?? '所属なし';
       const score = entry.total_score || 0;
 
-      // DBのカラム値を取得
-      const currentTotalScore = score;
-      const currentSemifinalResult = entry.semifinal_results;
-
-      // 最初の行以外で順位判定を行う
+      // --- 暫定順位の計算（合計スコアのみ比較） ---
       if (index > 0) {
-        // 順位が変わる条件:
-        // 1. 合計スコアが異なる
-        // 2. 合計スコアは同じだが、射遠順位が異なる
-
-        const isScoreDiff = currentTotalScore !== prevTotalScore;
-
-        const isSemifinalDiff =
-          (currentSemifinalResult !== null || prevSemifinalResult !== null) &&
-          currentSemifinalResult !== prevSemifinalResult;
-
-        if (isScoreDiff || isSemifinalDiff) {
-          // 順位を進める (同率だった数 + 1)
-          currentDisplayRank += sameRankCount + 1;
-          sameRankCount = 0;
+        if (score !== prevScore) {
+          currentProvRank += sameProvRankCount + 1;
+          sameProvRankCount = 0;
         } else {
-          // 完全に同順位
-          sameRankCount++;
+          sameProvRankCount++;
         }
       }
+      prevScore = score;
 
-      // 次の比較のために保持
-      prevTotalScore = currentTotalScore;
-      prevSemifinalResult = currentSemifinalResult;
+      // --- 最終順位の計算（リスト順の連番） ---
+      const calculatedFinalRank = index + 1;
+      const displayFinalRank = entry.final_ranking ?? calculatedFinalRank;
 
       return {
         id: entry.id,
         bib_number: entry.bib_number,
         player_name: playerName,
         team_name: teamName,
+        // 立順情報のマッピング (追加)
+        order_am1: entry.order_am1,
+        order_am2: entry.order_am2,
+        order_pm1: entry.order_pm1,
+        // スコア
         score_am1: entry.score_am1,
         score_am2: entry.score_am2,
         score_pm1: entry.score_pm1,
         total_score: score,
-        // 計算した「最終順位」を表示用として設定
-        provisional_ranking: currentDisplayRank,
+        provisional_ranking: currentProvRank,
+        final_ranking: displayFinalRank,
+        // 決勝情報
+        playoff_type: entry.playoff_type,
+        semifinal_score: entry.semifinal_score,
+        semifinal_results: entry.semifinal_results,
       };
     }
   );
