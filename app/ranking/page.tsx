@@ -9,7 +9,13 @@ export const metadata: Metadata = {
 export default async function RankingPage() {
   const supabase = await createClient();
 
-  // 1. データの取得とソート
+  // 1. 大会設定の取得
+  const { data: settings } = await supabase
+    .from('tournament_settings')
+    .select('*')
+    .single();
+
+  // 2. データの取得とソート
   const { data: entries, error } = await supabase
     .from('entries')
     .select(
@@ -46,7 +52,7 @@ export default async function RankingPage() {
     );
   }
 
-  // 2. 順位計算ロジック
+  // 3. 順位計算ロジック
   let currentProvRank = 1;
   let sameProvRankCount = 0;
   let prevScore: number | null = null;
@@ -68,33 +74,54 @@ export default async function RankingPage() {
       }
       prevScore = score;
 
-      // --- 最終順位の計算（リスト順の連番） ---
-      const calculatedFinalRank = index + 1;
-      const displayFinalRank = entry.final_ranking ?? calculatedFinalRank;
+      // --- 最終順位の取得 ---
+      const displayFinalRank = entry.final_ranking;
 
       return {
         id: entry.id,
         bib_number: entry.bib_number,
         player_name: playerName,
         team_name: teamName,
-        // 立順情報のマッピング (追加)
         order_am1: entry.order_am1,
         order_am2: entry.order_am2,
         order_pm1: entry.order_pm1,
-        // スコア
         score_am1: entry.score_am1,
         score_am2: entry.score_am2,
         score_pm1: entry.score_pm1,
         total_score: score,
         provisional_ranking: currentProvRank,
         final_ranking: displayFinalRank,
-        // 決勝情報
         playoff_type: entry.playoff_type,
         semifinal_score: entry.semifinal_score,
         semifinal_results: entry.semifinal_results,
       };
     }
   );
+
+  // 4. 競射（順位決定戦）対象者の抽出ロジック
+  const prizeCount = settings?.individual_prize_count || 0;
+  const playoffPlayers: PlayerData[] = [];
+
+  if (prizeCount > 0) {
+    const rankMap = new Map<number, PlayerData[]>();
+    players.forEach((p) => {
+      if (p.provisional_ranking !== null) {
+        const group = rankMap.get(p.provisional_ranking) || [];
+        group.push(p);
+        rankMap.set(p.provisional_ranking, group);
+      }
+    });
+
+    rankMap.forEach((group, rank) => {
+      // 修正後のロジック:
+      // 「その順位が入賞枠内」かつ「同点者が2人以上いる」場合は抽出する
+      if (rank <= prizeCount && group.length > 1) {
+        playoffPlayers.push(...group);
+      }
+    });
+
+    playoffPlayers.sort((a, b) => Number(a.bib_number) - Number(b.bib_number));
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -103,7 +130,11 @@ export default async function RankingPage() {
       </header>
 
       <main className="p-4">
-        <ScoreList players={players} />
+        <ScoreList
+          players={players}
+          settings={settings}
+          playoffPlayers={playoffPlayers}
+        />
       </main>
     </div>
   );

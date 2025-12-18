@@ -14,7 +14,17 @@ import {
   ListOrdered,
   Star,
   Info,
+  Activity,
+  Megaphone,
 } from 'lucide-react';
+
+// 大会設定の型定義
+export interface TournamentSettings {
+  current_phase: 'preparing' | 'qualifier' | 'tally' | 'final' | 'finished';
+  announcement: string | null;
+  individual_prize_count: number;
+  team_prize_count: number;
+}
 
 // データの型定義
 export interface PlayerData {
@@ -22,20 +32,16 @@ export interface PlayerData {
   bib_number: string | number;
   player_name: string;
   team_name: string;
-  // 立順情報の追加
   order_am1?: number | null;
   order_am2?: number | null;
   order_pm1?: number | null;
-  // スコア
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
   total_score: number;
-  // 順位情報
   provisional_ranking: number | null;
   final_ranking?: number | null;
   prev_ranking?: number | null;
-  // 決勝情報
   playoff_type?: 'izume' | 'enkin' | null;
   semifinal_score?: number | null;
   semifinal_results?: number | null;
@@ -43,17 +49,71 @@ export interface PlayerData {
 
 interface ScoreListProps {
   players: PlayerData[];
+  settings?: TournamentSettings | null;
+  playoffPlayers?: PlayerData[];
 }
 
-export default function ScoreList({ players }: ScoreListProps) {
-  // タブの状態管理 ('order_list' を追加し、初期値に設定)
+export default function ScoreList({
+  players,
+  settings,
+  playoffPlayers = [],
+}: ScoreListProps) {
   const [activeTab, setActiveTab] = useState<
     'order_list' | 'total' | 'am1' | 'am2' | 'pm1'
   >('order_list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
   const [showHelp, setShowHelp] = useState(false);
+
+  // フェーズ表示用のヘルパー (デザインを他の通知欄と統一するためにクラス定義を変更)
+  const getPhaseInfo = (phase?: string) => {
+    switch (phase) {
+      case 'preparing':
+        return {
+          label: '準備中。。。',
+          containerClass: 'bg-teal-50 border-teal-500',
+          textClass: 'text-teal-800',
+          iconClass: 'text-teal-600',
+        };
+      case 'qualifier':
+        return {
+          label: '予選進行中',
+          containerClass: 'bg-blue-50 border-blue-500',
+          textClass: 'text-blue-800',
+          iconClass: 'text-blue-600',
+        };
+      case 'tally':
+        return {
+          label: '集計中',
+          containerClass: 'bg-orange-50 border-orange-500',
+          textClass: 'text-orange-800',
+          iconClass: 'text-orange-600',
+        };
+      case 'final':
+        return {
+          label: '決勝進行中',
+          containerClass: 'bg-red-50 border-red-500',
+          textClass: 'text-red-800',
+          iconClass: 'text-red-600',
+        };
+      case 'finished':
+        return {
+          label: '全日程終了',
+          containerClass: 'bg-gray-100 border-gray-500',
+          textClass: 'text-gray-800',
+          iconClass: 'text-gray-600',
+        };
+      default:
+        return {
+          label: '',
+          containerClass: 'bg-gray-50 border-gray-300',
+          textClass: 'text-gray-500',
+          iconClass: 'text-gray-400',
+        };
+    }
+  };
+
+  const phaseInfo = getPhaseInfo(settings?.current_phase);
 
   const renderScore = (score: number | null | undefined, maxScore: number) => {
     if (score == null) return <span className="text-gray-400">-</span>;
@@ -77,7 +137,6 @@ export default function ScoreList({ players }: ScoreListProps) {
 
   // フィルタリングとソート処理
   const filteredPlayers = useMemo(() => {
-    // 1. 検索フィルタリング
     let result = players;
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
@@ -90,48 +149,43 @@ export default function ScoreList({ players }: ScoreListProps) {
       });
     }
 
-    // 2. タブごとのソート
     const sortedResult = [...result];
 
     switch (activeTab) {
-      case 'order_list': // 立順表: bib_number 昇順
-        sortedResult.sort((a, b) => {
-          const numA = Number(a.bib_number);
-          const numB = Number(b.bib_number);
-          return numA - numB;
-        });
+      case 'order_list':
+        sortedResult.sort(
+          (a, b) => Number(a.bib_number) - Number(b.bib_number)
+        );
         break;
       case 'am1':
-        sortedResult.sort((a, b) => {
-          const orderA = a.order_am1 ?? Number.MAX_SAFE_INTEGER;
-          const orderB = b.order_am1 ?? Number.MAX_SAFE_INTEGER;
-          return orderA - orderB;
-        });
+        sortedResult.sort(
+          (a, b) =>
+            (a.order_am1 ?? Number.MAX_SAFE_INTEGER) -
+            (b.order_am1 ?? Number.MAX_SAFE_INTEGER)
+        );
         break;
       case 'am2':
-        sortedResult.sort((a, b) => {
-          const orderA = a.order_am2 ?? Number.MAX_SAFE_INTEGER;
-          const orderB = b.order_am2 ?? Number.MAX_SAFE_INTEGER;
-          return orderA - orderB;
-        });
+        sortedResult.sort(
+          (a, b) =>
+            (a.order_am2 ?? Number.MAX_SAFE_INTEGER) -
+            (b.order_am2 ?? Number.MAX_SAFE_INTEGER)
+        );
         break;
       case 'pm1':
-        sortedResult.sort((a, b) => {
-          const orderA = a.order_pm1 ?? Number.MAX_SAFE_INTEGER;
-          const orderB = b.order_pm1 ?? Number.MAX_SAFE_INTEGER;
-          return orderA - orderB;
-        });
+        sortedResult.sort(
+          (a, b) =>
+            (a.order_pm1 ?? Number.MAX_SAFE_INTEGER) -
+            (b.order_pm1 ?? Number.MAX_SAFE_INTEGER)
+        );
         break;
       case 'total':
       default:
-        // 総合成績タブの場合は、親コンポーネントから渡された順序（成績順）を維持
         break;
     }
 
     return sortedResult;
   }, [players, searchTerm, activeTab]);
 
-  // 現在のタブに応じたデータを取得するヘルパー
   const getCurrentTabData = (player: PlayerData) => {
     switch (activeTab) {
       case 'am1':
@@ -147,6 +201,65 @@ export default function ScoreList({ players }: ScoreListProps) {
 
   return (
     <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800 relative">
+      {/* ステータス・お知らせ・競射情報エリア */}
+      <div className="mb-4 space-y-2 px-1">
+        {/* 現在のフェーズ (デザイン修正) */}
+        {settings?.current_phase && (
+          <div
+            className={`${phaseInfo.containerClass} border-l-4 p-3 rounded-r-lg shadow-sm flex items-center justify-between`}
+          >
+            <span
+              className={`font-bold text-sm flex items-center ${phaseInfo.textClass}`}
+            >
+              <Activity size={16} className={`mr-2 ${phaseInfo.iconClass}`} />
+              現在の状況: {phaseInfo.label}
+            </span>
+          </div>
+        )}
+
+        {/* 競射（順位決定戦）対象者アラート */}
+        {playoffPlayers.length > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center mb-2">
+              <Target className="text-red-600 mr-2" size={20} />
+              <h3 className="font-bold text-red-800">
+                順位決定戦（競射）対象者
+              </h3>
+            </div>
+            <p className="text-xs text-red-600 mb-2">
+              入賞枠（{settings?.individual_prize_count}
+              位まで）を決定するため、以下の選手は競射の対象となります。
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {playoffPlayers.map((p) => (
+                <span
+                  key={p.id}
+                  className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold bg-white text-red-700 border border-red-200 shadow-sm"
+                >
+                  <span className="text-xs text-red-400 mr-1">
+                    No.{p.bib_number}
+                  </span>
+                  {p.player_name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 運営からのお知らせ */}
+        {settings?.announcement && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm flex items-start">
+            <Megaphone
+              size={16}
+              className="text-yellow-600 mt-0.5 mr-2 flex-shrink-0"
+            />
+            <p className="text-sm text-yellow-800 whitespace-pre-wrap leading-relaxed">
+              {settings.announcement}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* ヘルプボタンエリア */}
       <div className="flex justify-end mb-3 pt-2 px-1">
         <button
@@ -160,7 +273,6 @@ export default function ScoreList({ players }: ScoreListProps) {
 
       {/* タブナビゲーション */}
       <div className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200 overflow-x-auto">
-        {/* 立順表タブ (最左端に追加) */}
         <button
           onClick={() => setActiveTab('order_list')}
           className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
@@ -179,7 +291,7 @@ export default function ScoreList({ players }: ScoreListProps) {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
           }`}
         >
-          午前1立目
+          午前1
         </button>
         <button
           onClick={() => setActiveTab('am2')}
@@ -189,7 +301,7 @@ export default function ScoreList({ players }: ScoreListProps) {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
           }`}
         >
-          午前2立目
+          午前2
         </button>
         <button
           onClick={() => setActiveTab('pm1')}
@@ -199,7 +311,7 @@ export default function ScoreList({ players }: ScoreListProps) {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
           }`}
         >
-          午後1立目
+          午後1
         </button>
         <button
           onClick={() => setActiveTab('total')}
@@ -214,7 +326,7 @@ export default function ScoreList({ players }: ScoreListProps) {
       </div>
 
       <div className="space-y-4">
-        {/* ヘッダー操作部（全タブ共通） */}
+        {/* ヘッダー操作部 */}
         <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm mb-2">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-gray-500 ml-2">
@@ -267,16 +379,13 @@ export default function ScoreList({ players }: ScoreListProps) {
 
         {/* 選手リスト表示 */}
         {filteredPlayers.map((player) => {
-          // =================================================================
-          // [新規] 立順表タブの表示ロジック
-          // =================================================================
+          // 立順表タブ
           if (activeTab === 'order_list') {
             return (
               <div
                 key={player.id}
                 className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
               >
-                {/* 1行目: ID(No.), 選手名, チーム名 */}
                 <div className="p-4 border-b border-[#E8ECEF]">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
@@ -290,10 +399,7 @@ export default function ScoreList({ players }: ScoreListProps) {
                     {player.team_name}
                   </div>
                 </div>
-
-                {/* 2行目: 午前1, 午前2, 午後の立順を横並び表示 */}
                 <div className="flex bg-[#F8FAFC] divide-x divide-[#E8ECEF]">
-                  {/* 午前1 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       午前1立順
@@ -302,7 +408,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                       {displayOrder(player.order_am1)}
                     </span>
                   </div>
-                  {/* 午前2 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       午前2立順
@@ -311,7 +416,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                       {displayOrder(player.order_am2)}
                     </span>
                   </div>
-                  {/* 午後 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       午後立順
@@ -325,12 +429,9 @@ export default function ScoreList({ players }: ScoreListProps) {
             );
           }
 
-          // =================================================================
-          // 予選タブ（午前1/午前2/午後1）の表示ロジック
-          // =================================================================
+          // 予選タブ
           if (activeTab !== 'total') {
             const data = getCurrentTabData(player);
-            // タブに応じた最大スコアを設定（午後1は4、それ以外は2）
             const maxScore = activeTab === 'pm1' ? 4 : 2;
 
             return (
@@ -338,7 +439,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                 key={player.id}
                 className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
               >
-                {/* 1行目: ID(No.), 選手名, チーム名 */}
                 <div className="p-4 border-b border-[#E8ECEF]">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
@@ -352,10 +452,7 @@ export default function ScoreList({ players }: ScoreListProps) {
                     {player.team_name}
                   </div>
                 </div>
-
-                {/* 2行目: 立順, 的中数 */}
                 <div className="flex bg-[#F8FAFC]">
-                  {/* 立順 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
                     <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
                       <ListOrdered size={14} className="mr-1" />
@@ -365,8 +462,6 @@ export default function ScoreList({ players }: ScoreListProps) {
                       {displayOrder(data?.order)}
                     </div>
                   </div>
-
-                  {/* 的中数 */}
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
                       <Target size={14} className="mr-1" />
@@ -381,9 +476,7 @@ export default function ScoreList({ players }: ScoreListProps) {
             );
           }
 
-          // =================================================================
-          // 総合成績タブの表示ロジック (既存維持)
-          // =================================================================
+          // 総合成績タブ
           return (
             <div
               key={player.id}
@@ -412,7 +505,7 @@ export default function ScoreList({ players }: ScoreListProps) {
               <div className="flex border-t border-[#E8ECEF] bg-white divide-x divide-[#E8ECEF]">
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
                   <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                    午前1立目
+                    午前1
                   </span>
                   <span className="text-sm font-bold text-[#324857]">
                     {renderScore(player.score_am1, 2)}
@@ -420,7 +513,7 @@ export default function ScoreList({ players }: ScoreListProps) {
                 </div>
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
                   <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                    午前2立目
+                    午前2
                   </span>
                   <span className="text-sm font-bold text-[#324857]">
                     {renderScore(player.score_am2, 2)}
@@ -428,7 +521,7 @@ export default function ScoreList({ players }: ScoreListProps) {
                 </div>
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
                   <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                    午後1立目
+                    午後1
                   </span>
                   <span className="text-sm font-bold text-[#324857]">
                     {renderScore(player.score_pm1, 4)}
@@ -539,7 +632,6 @@ export default function ScoreList({ players }: ScoreListProps) {
           );
         })}
 
-        {/* データ無し時の表示 */}
         {filteredPlayers.length === 0 && (
           <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
             <p>該当する選手が見つかりません</p>
@@ -557,7 +649,6 @@ export default function ScoreList({ players }: ScoreListProps) {
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* モーダルヘッダー */}
             <div className="flex justify-between items-center bg-[#34675C] px-5 py-4">
               <h3 className="text-white font-bold text-lg flex items-center">
                 <Info size={24} className="mr-2" />
@@ -571,7 +662,6 @@ export default function ScoreList({ players }: ScoreListProps) {
               </button>
             </div>
 
-            {/* モーダルコンテンツ */}
             <div className="p-6 overflow-y-auto text-sm space-y-6 text-gray-700 leading-relaxed">
               <section>
                 <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
@@ -654,7 +744,6 @@ export default function ScoreList({ players }: ScoreListProps) {
               </section>
             </div>
 
-            {/* モーダルフッター */}
             <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
               <button
                 onClick={() => setShowHelp(false)}
