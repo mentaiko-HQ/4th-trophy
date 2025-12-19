@@ -16,11 +16,7 @@ export default async function RankingPage() {
     .single();
 
   // 2. データの取得とソート
-  // ソート順の修正:
-  // 1. 最終順位 (計算済みなら昇順、未計算NULLは後ろ)
-  // 2. 合計スコア (降順、暫定順位相当)
-  // 3. 射遠順位 (昇順、同点の場合の比較)
-  // 4. ゼッケン番号 (昇順、最終的な並び順の安定化)
+  // 【修正】欠席者 (is_absent = true) を除外するフィルタを追加
   const { data: entries, error } = await supabase
     .from('entries')
     .select(
@@ -34,9 +30,12 @@ export default async function RankingPage() {
       )
     `
     )
-    .order('final_ranking', { ascending: true, nullsFirst: false })
+    .neq('is_absent', true) // 欠席フラグが true でない（false または null）データを取得
+    // 優先順位1: 合計的中数 (降順)
     .order('total_score', { ascending: false })
+    // 優先順位2: 射遠順位 (昇順: 1位, 2位... NULLは後ろ)
     .order('semifinal_results', { ascending: true, nullsFirst: false })
+    // 優先順位3: ゼッケン番号 (昇順)
     .order('bib_number', { ascending: true });
 
   if (error) {
@@ -67,14 +66,7 @@ export default async function RankingPage() {
       const score = entry.total_score || 0;
 
       // --- 暫定順位の計算（合計スコアのみ比較） ---
-      // これは表示用に必要なので計算し続ける
       if (index > 0) {
-        // 直前の人とスコアが違う場合のみ順位を進める（entriesはスコア順ではない可能性があるが、
-        // 暫定順位はスコア依存なので、このロジックを維持するにはスコア順ソートが必要。
-        // ただし今回はfinal_ranking優先ソートなので、final_rankingが決まっているとスコア順ではない可能性がある。
-        // よって、この簡易ロジックでは正確な暫定順位が出ないケースがあるが、
-        // 最終順位決定後は暫定順位の重要度が下がるため、許容するか、別途計算が必要。
-        // 現状は既存ロジックを維持します。
         if (score !== prevScore) {
           currentProvRank += sameProvRankCount + 1;
           sameProvRankCount = 0;
@@ -85,7 +77,6 @@ export default async function RankingPage() {
       prevScore = score;
 
       // --- 最終順位の取得 ---
-      // DBの値を使用する
       const displayFinalRank = entry.final_ranking;
 
       return {
@@ -104,7 +95,7 @@ export default async function RankingPage() {
         score_pm1: entry.score_pm1,
         total_score: score,
         provisional_ranking: currentProvRank,
-        final_ranking: displayFinalRank, // DBの値を使用
+        final_ranking: displayFinalRank,
         playoff_type: entry.playoff_type,
         semifinal_score: entry.semifinal_score,
         semifinal_results: entry.semifinal_results,
@@ -127,7 +118,7 @@ export default async function RankingPage() {
     });
 
     rankMap.forEach((group, rank) => {
-      // 修正後のロジック: 入賞枠内かつ同点者が2人以上
+      // 入賞枠内かつ同点者が複数いる場合は抽出
       if (rank <= prizeCount && group.length > 1) {
         playoffPlayers.push(...group);
       }

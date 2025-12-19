@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { Users } from 'lucide-react';
 
 export type PlayerData = {
   id: string;
@@ -22,7 +23,7 @@ type Props = {
   currentTab: string;
 };
 
-// ステータス定義 (色調整)
+// ステータス定義
 const STATUS_OPTIONS = [
   {
     value: 'waiting',
@@ -48,19 +49,13 @@ const STATUS_OPTIONS = [
 
 export default function CallingStatusClient({ players, currentTab }: Props) {
   const router = useRouter();
+
+  // 更新中のグループインデックスを保持するState
   const [updatingGroupIndex, setUpdatingGroupIndex] = useState<number | null>(
     null
   );
 
-  const chunkArray = <T,>(array: T[], size: number): T[][] => {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
-  };
-  const playerGroups = chunkArray(players, 5);
-
+  // 現在のタブに応じたターゲットカラム設定
   let targetStatusColumn = 'status_am1';
   let targetOrderKey: keyof PlayerData = 'order_am1';
 
@@ -73,12 +68,34 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     targetOrderKey = 'order_pm1';
   }
 
+  // 1. フィルタリングとソート
+  const sortedPlayers = useMemo(() => {
+    const filtered = players.filter((p) => (p as any)[targetOrderKey] !== null);
+    return filtered.sort((a, b) => {
+      const orderA = (a as any)[targetOrderKey] || 0;
+      const orderB = (b as any)[targetOrderKey] || 0;
+      return orderA - orderB;
+    });
+  }, [players, targetOrderKey]);
+
+  // 2. グループ化 (5人ずつ)
+  const chunkArray = <T,>(array: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  const playerGroups = chunkArray(sortedPlayers, 5);
+
+  // ステータス一括更新ハンドラ
   const handleStatusChange = async (
     groupPlayers: PlayerData[],
     newStatus: string,
     groupIndex: number
   ) => {
-    setUpdatingGroupIndex(groupIndex);
+    setUpdatingGroupIndex(groupIndex); // 対象グループのローディング開始
     const supabase = createClient();
 
     try {
@@ -116,6 +133,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto pb-10">
+      {/* タブ切り替え */}
       <div className="flex bg-[#7DA3A1]/20 p-1 rounded-t-xl overflow-hidden border-b border-[#7DA3A1]/30 mb-6">
         <button
           onClick={() => handleTabChange('am1')}
@@ -138,98 +156,108 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
       </div>
 
       <div className="space-y-4">
-        {playerGroups.map((group, groupIndex) => {
-          const currentStatusVal =
-            (group[0] as any)[targetStatusColumn] || 'waiting';
-          const pairIndex = Math.floor(groupIndex / 2) + 1;
-          const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
+        {/* 全グループを一覧表示 */}
+        {playerGroups.length > 0 ? (
+          playerGroups.map((group, groupIndex) => {
+            // 現在のグループの代表ステータスを取得（先頭の人を基準）
+            const currentGroupStatus =
+              (group[0] as any)[targetStatusColumn] || 'waiting';
 
-          const startOrder = (group[0] as any)[targetOrderKey];
-          const endOrder = (group[group.length - 1] as any)[targetOrderKey];
+            const pairIndex = groupIndex + 1; // 組番号
+            const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
 
-          return (
-            <div
-              key={groupIndex}
-              className="bg-white border border-[#7DA3A1]/30 rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row"
-            >
-              {/* 左側：メンバーリストエリア */}
-              <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-[#7DA3A1]/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="bg-[#34675C] text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
-                    第{pairIndex}組-{shajo}
-                  </span>
-                  <span className="text-sm font-bold text-[#7DA3A1]">
-                    立順: {startOrder ?? '?'} 〜 {endOrder ?? '?'}
-                  </span>
+            return (
+              <div
+                key={groupIndex}
+                className="bg-white border border-[#7DA3A1]/30 rounded-xl shadow-sm overflow-hidden flex flex-col md:flex-row"
+              >
+                {/* 左側：メンバーリストエリア */}
+                <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-[#7DA3A1]/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="bg-[#34675C] text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm flex items-center">
+                      <Users size={14} className="mr-1" /> 第{pairIndex}組 (
+                      {shajo})
+                    </span>
+                    <span className="text-sm font-bold text-[#7DA3A1]">
+                      立順: {(group[0] as any)[targetOrderKey] ?? '?'} 〜{' '}
+                      {(group[group.length - 1] as any)[targetOrderKey] ?? '?'}
+                    </span>
+                  </div>
+
+                  <ul className="space-y-2">
+                    {group.map((p, idx) => (
+                      <li
+                        key={p.id}
+                        className="flex items-center text-sm p-2 rounded hover:bg-gray-50 transition-colors"
+                      >
+                        {/* 射位番号 */}
+                        <span className="w-8 text-center font-bold text-white bg-[#34675C] rounded-full h-6 flex items-center justify-center mr-3 text-xs shadow-sm">
+                          {idx + 1}
+                        </span>
+                        {/* ゼッケン */}
+                        <span className="w-16 font-mono text-[#324857] text-xs mr-2 font-bold bg-gray-100 px-1 py-0.5 rounded text-center">
+                          No.{p.bib_number}
+                        </span>
+                        {/* 名前と所属 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-[#324857] truncate">
+                            {p.player_name}
+                          </div>
+                          <div className="text-xs text-[#7DA3A1] truncate">
+                            {p.team_name}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                <ul className="space-y-2">
-                  {group.map((p, idx) => (
-                    <li key={p.id} className="flex items-center text-sm">
-                      <span className="w-6 text-center font-bold text-[#7DA3A1] mr-2 bg-[#F0F4F5] rounded">
-                        {idx + 1}
-                      </span>
-                      <span className="w-16 font-mono text-[#324857] text-xs mr-2 font-bold">
-                        ID:{p.bib_number}
-                      </span>
-                      <span className="font-bold text-[#324857] mr-2">
-                        {p.player_name}
-                      </span>
-                      <span className="text-xs text-[#7DA3A1] truncate flex-1 text-right">
-                        {p.team_name}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                {/* 右側：ステータス操作エリア */}
+                <div className="w-full md:w-48 bg-[#F0F4F5] p-4 flex flex-col justify-center gap-2">
+                  <div className="text-center mb-1">
+                    <span className="text-xs font-bold text-[#7DA3A1]">
+                      現在の状態
+                    </span>
+                  </div>
 
-              {/* 右側：ステータス操作エリア */}
-              <div className="w-full md:w-48 bg-[#F0F4F5] p-4 flex flex-col justify-center gap-2">
-                <div className="text-center mb-1">
-                  <span className="text-xs font-bold text-[#7DA3A1]">
-                    現在の状態
-                  </span>
-                </div>
+                  <div
+                    className={`text-center py-2 rounded-lg font-bold text-lg mb-2 shadow-sm border transition-all ${
+                      STATUS_OPTIONS.find((o) => o.value === currentGroupStatus)
+                        ?.color || 'bg-white'
+                    }`}
+                  >
+                    {
+                      STATUS_OPTIONS.find((o) => o.value === currentGroupStatus)
+                        ?.label
+                    }
+                  </div>
 
-                <div
-                  className={`text-center py-2 rounded-lg font-bold text-lg mb-2 shadow-sm border ${
-                    STATUS_OPTIONS.find((o) => o.value === currentStatusVal)
-                      ?.color || 'bg-white'
-                  }`}
-                >
-                  {
-                    STATUS_OPTIONS.find((o) => o.value === currentStatusVal)
-                      ?.label
-                  }
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {STATUS_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() =>
-                        handleStatusChange(group, option.value, groupIndex)
-                      }
-                      disabled={updatingGroupIndex === groupIndex}
-                      className={`
-                        py-2 px-1 rounded text-xs font-bold border transition-all
-                        ${
-                          currentStatusVal === option.value
-                            ? 'opacity-50 cursor-default bg-gray-200 text-gray-500 border-gray-200'
-                            : 'bg-white text-[#324857] border-[#7DA3A1]/30 hover:bg-white hover:text-[#86AC41] hover:border-[#86AC41] shadow-sm'
+                  <div className="grid grid-cols-2 gap-2">
+                    {STATUS_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() =>
+                          handleStatusChange(group, option.value, groupIndex)
                         }
-                      `}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                        disabled={updatingGroupIndex === groupIndex}
+                        className={`
+                          py-2 px-1 rounded text-xs font-bold border transition-all
+                          ${
+                            currentGroupStatus === option.value
+                              ? 'opacity-50 cursor-default bg-gray-200 text-gray-500 border-gray-200'
+                              : 'bg-white text-[#324857] border-[#7DA3A1]/30 hover:bg-white hover:text-[#86AC41] hover:border-[#86AC41] shadow-sm active:scale-95'
+                          }
+                        `}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-
-        {playerGroups.length === 0 && (
+            );
+          })
+        ) : (
           <div className="text-center py-12 text-[#7DA3A1] bg-white rounded-xl border border-dashed border-[#7DA3A1]/50">
             表示対象の選手がいません
           </div>
