@@ -32,16 +32,24 @@ export interface PlayerData {
   bib_number: string | number;
   player_name: string;
   team_name: string;
+  // 立順情報の追加
   order_am1?: number | null;
   order_am2?: number | null;
   order_pm1?: number | null;
+  // ステータス情報
+  status_am1?: string | null;
+  status_am2?: string | null;
+  status_pm1?: string | null;
+  // スコア
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
   total_score: number;
+  // 順位情報
   provisional_ranking: number | null;
   final_ranking?: number | null;
   prev_ranking?: number | null;
+  // 決勝情報
   playoff_type?: 'izume' | 'enkin' | null;
   semifinal_score?: number | null;
   semifinal_results?: number | null;
@@ -54,7 +62,7 @@ interface ScoreListProps {
 }
 
 export default function ScoreList({
-  players,
+  players = [],
   settings,
   playoffPlayers = [],
 }: ScoreListProps) {
@@ -65,7 +73,16 @@ export default function ScoreList({
   const [searchTerm, setSearchTerm] = useState('');
   const [showHelp, setShowHelp] = useState(false);
 
-  // フェーズ表示用のヘルパー (デザインを他の通知欄と統一するためにクラス定義を変更)
+  // 安全な配列データを確保
+  const safePlayers = useMemo(
+    () => (Array.isArray(players) ? players : []),
+    [players]
+  );
+  const safePlayoffPlayers = useMemo(
+    () => (Array.isArray(playoffPlayers) ? playoffPlayers : []),
+    [playoffPlayers]
+  );
+
   const getPhaseInfo = (phase?: string) => {
     switch (phase) {
       case 'preparing':
@@ -132,15 +149,49 @@ export default function ScoreList({
     );
   };
 
+  const renderOrderInfo = (
+    order: number | null | undefined,
+    status: string | null | undefined
+  ) => {
+    const orderDisplay = order ? (
+      <span className="text-lg font-bold text-[#324857]">{order}番</span>
+    ) : (
+      <span className="text-gray-400">-</span>
+    );
+
+    if (status === 'shooting') {
+      return (
+        <div className="flex flex-col items-center">
+          {orderDisplay}
+          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold border border-red-200 animate-pulse whitespace-nowrap">
+            行射中
+          </span>
+        </div>
+      );
+    }
+    if (status === 'called') {
+      return (
+        <div className="flex flex-col items-center">
+          {orderDisplay}
+          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 whitespace-nowrap">
+            控えに待機
+          </span>
+        </div>
+      );
+    }
+    return orderDisplay;
+  };
+
   const displayOrder = (order: number | null | undefined) =>
     order ? `${order}番` : '-';
 
-  // フィルタリングとソート処理
   const filteredPlayers = useMemo(() => {
-    let result = players;
+    if (!Array.isArray(safePlayers)) return [];
+
+    let result = safePlayers;
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
-      result = players.filter((player) => {
+      result = safePlayers.filter((player) => {
         return (
           player.player_name.toLowerCase().includes(lowerTerm) ||
           player.team_name.toLowerCase().includes(lowerTerm) ||
@@ -154,7 +205,7 @@ export default function ScoreList({
     switch (activeTab) {
       case 'order_list':
         sortedResult.sort(
-          (a, b) => Number(a.bib_number) - Number(b.bib_number)
+          (a, b) => (Number(a.bib_number) || 0) - (Number(b.bib_number) || 0)
         );
         break;
       case 'am1':
@@ -184,16 +235,28 @@ export default function ScoreList({
     }
 
     return sortedResult;
-  }, [players, searchTerm, activeTab]);
+  }, [safePlayers, searchTerm, activeTab]);
 
   const getCurrentTabData = (player: PlayerData) => {
     switch (activeTab) {
       case 'am1':
-        return { order: player.order_am1, score: player.score_am1 };
+        return {
+          order: player.order_am1,
+          score: player.score_am1,
+          status: player.status_am1,
+        };
       case 'am2':
-        return { order: player.order_am2, score: player.score_am2 };
+        return {
+          order: player.order_am2,
+          score: player.score_am2,
+          status: player.status_am2,
+        };
       case 'pm1':
-        return { order: player.order_pm1, score: player.score_pm1 };
+        return {
+          order: player.order_pm1,
+          score: player.score_pm1,
+          status: player.status_pm1,
+        };
       default:
         return null;
     }
@@ -203,7 +266,6 @@ export default function ScoreList({
     <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800 relative">
       {/* ステータス・お知らせ・競射情報エリア */}
       <div className="mb-4 space-y-2 px-1">
-        {/* 現在のフェーズ (デザイン修正) */}
         {settings?.current_phase && (
           <div
             className={`${phaseInfo.containerClass} border-l-4 p-3 rounded-r-lg shadow-sm flex items-center justify-between`}
@@ -217,8 +279,7 @@ export default function ScoreList({
           </div>
         )}
 
-        {/* 競射（順位決定戦）対象者アラート */}
-        {playoffPlayers.length > 0 && (
+        {safePlayoffPlayers.length > 0 && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center mb-2">
               <Target className="text-red-600 mr-2" size={20} />
@@ -231,7 +292,7 @@ export default function ScoreList({
               位まで）を決定するため、以下の選手は競射の対象となります。
             </p>
             <div className="flex flex-wrap gap-2">
-              {playoffPlayers.map((p) => (
+              {safePlayoffPlayers.map((p) => (
                 <span
                   key={p.id}
                   className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold bg-white text-red-700 border border-red-200 shadow-sm"
@@ -246,7 +307,6 @@ export default function ScoreList({
           </div>
         )}
 
-        {/* 運営からのお知らせ */}
         {settings?.announcement && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm flex items-start">
             <Megaphone
@@ -334,22 +394,20 @@ export default function ScoreList({
               <span className="text-[#34675C] text-sm">
                 {filteredPlayers.length}
               </span>{' '}
-              / {players.length}件
+              / {safePlayers.length}件
             </span>
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`flex items-center text-xs font-bold border rounded px-3 py-1.5 shadow-sm transition-colors
-                        ${
-                          isFilterOpen
-                            ? 'bg-[#34675C] text-white border-[#34675C]'
-                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                        }`}
+              className={`flex items-center text-xs font-bold border rounded px-3 py-1.5 shadow-sm transition-colors ${
+                isFilterOpen
+                  ? 'bg-[#34675C] text-white border-[#34675C]'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
             >
               <Filter size={12} className="mr-1" />
               {isFilterOpen ? '閉じる' : '絞り込み'}
             </button>
           </div>
-
           {isFilterOpen && (
             <div className="mt-2 pt-2 border-t border-gray-100 animate-in slide-in-from-top-1 fade-in duration-200">
               <div className="relative">
@@ -379,7 +437,6 @@ export default function ScoreList({
 
         {/* 選手リスト表示 */}
         {filteredPlayers.map((player) => {
-          // 立順表タブ
           if (activeTab === 'order_list') {
             return (
               <div
@@ -404,36 +461,28 @@ export default function ScoreList({
                     <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       午前1立順
                     </span>
-                    <span className="text-sm font-bold text-[#324857]">
-                      {displayOrder(player.order_am1)}
-                    </span>
+                    {renderOrderInfo(player.order_am1, player.status_am1)}
                   </div>
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       午前2立順
                     </span>
-                    <span className="text-sm font-bold text-[#324857]">
-                      {displayOrder(player.order_am2)}
-                    </span>
+                    {renderOrderInfo(player.order_am2, player.status_am2)}
                   </div>
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       午後立順
                     </span>
-                    <span className="text-sm font-bold text-[#324857]">
-                      {displayOrder(player.order_pm1)}
-                    </span>
+                    {renderOrderInfo(player.order_pm1, player.status_pm1)}
                   </div>
                 </div>
               </div>
             );
           }
 
-          // 予選タブ
           if (activeTab !== 'total') {
             const data = getCurrentTabData(player);
             const maxScore = activeTab === 'pm1' ? 4 : 2;
-
             return (
               <div
                 key={player.id}
@@ -458,9 +507,7 @@ export default function ScoreList({
                       <ListOrdered size={14} className="mr-1" />
                       <span>立順</span>
                     </div>
-                    <div className="text-lg font-bold text-[#324857]">
-                      {displayOrder(data?.order)}
-                    </div>
+                    <div>{renderOrderInfo(data?.order, data?.status)}</div>
                   </div>
                   <div className="flex-1 py-3 flex flex-col items-center justify-center">
                     <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
@@ -500,7 +547,6 @@ export default function ScoreList({
                   </div>
                 </div>
               </div>
-
               {/* 2行目 */}
               <div className="flex border-t border-[#E8ECEF] bg-white divide-x divide-[#E8ECEF]">
                 <div className="flex-1 py-2 flex flex-col items-center justify-center">
@@ -528,7 +574,6 @@ export default function ScoreList({
                   </span>
                 </div>
               </div>
-
               {/* 3行目 */}
               <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
                 <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
@@ -543,7 +588,6 @@ export default function ScoreList({
                     </span>
                   </div>
                 </div>
-
                 <div className="flex-1 py-3 flex flex-col items-center justify-center">
                   <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
                     <Trophy size={14} className="mr-1" />
@@ -565,7 +609,6 @@ export default function ScoreList({
                   </div>
                 </div>
               </div>
-
               {/* 決勝詳細 */}
               {(player.playoff_type ||
                 player.semifinal_score != null ||
@@ -591,7 +634,6 @@ export default function ScoreList({
                         : '-'}
                     </span>
                   </div>
-
                   <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-[4rem]">
                     <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
                       <Crosshair size={10} className="mr-1" /> 射詰的中
@@ -602,7 +644,6 @@ export default function ScoreList({
                         : '-'}
                     </span>
                   </div>
-
                   <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-[4rem]">
                     <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
                       <HelpCircle size={10} className="mr-1" /> 射遠順位
@@ -615,7 +656,6 @@ export default function ScoreList({
                   </div>
                 </div>
               )}
-
               {/* 4行目 */}
               <div className="flex border-t border-[#E8ECEF] bg-yellow-50/50">
                 <div className="flex-1 py-3 flex flex-col items-center justify-center">
@@ -624,7 +664,9 @@ export default function ScoreList({
                     <span>最終順位</span>
                   </div>
                   <div className="text-2xl font-bold text-[#324857]">
-                    {player.final_ranking ? `${player.final_ranking}位` : '-'}
+                    {player.final_ranking
+                      ? `${player.final_ranking}位`
+                      : '未定'}
                   </div>
                 </div>
               </div>
@@ -645,7 +687,6 @@ export default function ScoreList({
         )}
       </div>
 
-      {/* ヘルプモーダル */}
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -661,7 +702,6 @@ export default function ScoreList({
                 <X size={24} />
               </button>
             </div>
-
             <div className="p-6 overflow-y-auto text-sm space-y-6 text-gray-700 leading-relaxed">
               <section>
                 <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
@@ -709,7 +749,6 @@ export default function ScoreList({
                   </li>
                 </ul>
               </section>
-
               <section>
                 <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
                   操作方法
@@ -723,7 +762,6 @@ export default function ScoreList({
                   </p>
                 </div>
               </section>
-
               <section>
                 <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
                   順位決定ルール
@@ -743,7 +781,6 @@ export default function ScoreList({
                 </ol>
               </section>
             </div>
-
             <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
               <button
                 onClick={() => setShowHelp(false)}

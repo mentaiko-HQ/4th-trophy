@@ -11,6 +11,7 @@ import {
   Minus,
   Edit2,
   Check,
+  Calculator,
 } from 'lucide-react';
 
 // 外部から参照できるよう export を付与
@@ -251,6 +252,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     useState<PlayerData[]>(players);
 
   // 編集中のデータを保持するState
+  // { [playerId]: PlayerData }
   const [editingData, setEditingData] = useState<Record<string, PlayerData>>(
     {}
   );
@@ -259,9 +261,13 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   // 直近で保存したデータを一時的に保持する (サーバーデータの反映遅延対策)
+  // key: playerId, value: PlayerData
   const [lastSavedData, setLastSavedData] = useState<
     Record<string, PlayerData>
   >({});
+
+  // 計算中フラグ
+  const [isCalculating, setIsCalculating] = useState(false);
 
   // サーバーからのデータ(players)が更新されたらローカル状態も同期する
   useEffect(() => {
@@ -279,9 +285,11 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
             serverPlayer.playoff_type === saved.playoff_type;
 
           if (isServerDataUpdated) {
+            // サーバーデータが追いついた場合、サーバーデータを使用
             return serverPlayer;
           } else {
             // サーバーデータがまだ古い場合、ローカルの保存済みデータを優先して表示し続ける
+            // ただし、他のフィールド（total_scoreなど）はサーバーデータを使うべきなのでマージする
             return { ...serverPlayer, ...saved };
           }
         }
@@ -355,7 +363,10 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
       if (error) throw error;
 
       // 保存成功時の処理
+
+      // 1. 直近保存データとして登録 (サーバーデータが追いつくまでこれを優先して表示に使う)
       setLastSavedData((prev) => {
+        // 現在の楽観的状態を取得（他の変更が含まれている可能性があるため）
         const currentOptimistic = optimisticPlayers.find(
           (p) => p.id === playerId
         );
@@ -363,12 +374,15 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
         return { ...prev, [playerId]: merged };
       });
 
+      // 2. ローカルの表示用データを即座に更新 (Optimistic Update)
       setOptimisticPlayers((prev) =>
         prev.map((p) => (p.id === playerId ? { ...p, ...dataToSave } : p))
       );
 
+      // 3. サーバーデータの再取得を要求
       router.refresh();
 
+      // 4. 編集モードを終了
       setEditingData((prev) => {
         const next = { ...prev };
         delete next[playerId];
@@ -382,6 +396,74 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     }
   };
 
+  // ★最終順位の一括計算処理 (修正版: upsertではなく個別updateを使用)
+  const handleCalculateFinalRanking = async () => {
+    if (
+      !window.confirm(
+        '現在の入力内容に基づいて最終順位を計算・確定します。\nよろしいですか？'
+      )
+    ) {
+      return;
+    }
+    setIsCalculating(true);
+    const supabase = createClient();
+
+    try {
+      // 1. ソート実行
+      const sortedPlayers = [...optimisticPlayers].sort((a, b) => {
+        // 優先順位1: 合計スコア (降順)
+        if (b.total_score !== a.total_score)
+          return b.total_score - a.total_score;
+
+        // 優先順位2: 射遠順位 (昇順: 数字が小さい方が上。nullは一番下)
+        const aResult = a.semifinal_results;
+        const bResult = b.semifinal_results;
+
+        if (aResult !== null && bResult !== null) return aResult - bResult;
+        if (aResult !== null) return -1; // aだけ値がある -> aが上
+        if (bResult !== null) return 1; // bだけ値がある -> bが上
+
+        // 優先順位3: ゼッケン番号 (昇順)
+        return Number(a.bib_number) - Number(b.bib_number);
+      });
+
+      // 2. 分割して個別Updateを実行 (バッチ処理)
+      // upsertは400エラーの原因になりやすいため、単純なupdateを並列実行します。
+      const BATCH_SIZE = 10; // 10件ずつ送信
+
+      for (let i = 0; i < sortedPlayers.length; i += BATCH_SIZE) {
+        const batch = sortedPlayers.slice(i, i + BATCH_SIZE);
+
+        const promises = batch.map((player, index) => {
+          const rank = i + index + 1;
+          return supabase
+            .from('entries')
+            .update({ final_ranking: rank })
+            .eq('id', player.id);
+        });
+
+        // 10件のUpdateを並列実行
+        const results = await Promise.all(promises);
+
+        // エラーチェック
+        for (const result of results) {
+          if (result.error) {
+            console.error('Individual update error:', result.error);
+            throw result.error;
+          }
+        }
+      }
+
+      alert('最終順位の計算と保存が完了しました。');
+      router.refresh();
+    } catch (error) {
+      console.error('Calculation error:', error);
+      alert('計算処理に失敗しました。');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   const chunkArray = <T,>(array: T[], size: number): T[][] => {
     const chunks: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
@@ -390,6 +472,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     return chunks;
   };
 
+  // 表示には optimisticPlayers を使用する
   const playerGroups = chunkArray(optimisticPlayers, 5);
 
   let label = '午前1';
@@ -454,7 +537,33 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
 
       {currentTab === 'final' ? (
         <div className="space-y-4">
+          {/* ★追加: 最終順位計算ボタンエリア */}
+          <div className="bg-white p-4 rounded-xl border border-[#34675C]/30 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+            <div className="text-sm text-gray-600">
+              <span className="font-bold text-[#34675C]">現在の入力内容</span>
+              に基づいて最終順位を確定します。
+              <br />
+              <span className="text-xs text-gray-400">
+                ※閲覧ページの表示順位が更新されます
+              </span>
+            </div>
+            <button
+              onClick={handleCalculateFinalRanking}
+              disabled={isCalculating}
+              className="w-full sm:w-auto bg-[#34675C] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#2a524a] active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
+            >
+              {isCalculating ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Calculator className="mr-2 h-5 w-5" />
+              )}
+              最終順位計算
+            </button>
+          </div>
+
+          {/* optimisticPlayers をマップして表示 */}
           {optimisticPlayers.map((originalPlayer) => {
+            // 編集中のデータがあればそれを使用、なければ表示用データを使用
             const isEditing = !!editingData[originalPlayer.id];
             const player = isEditing
               ? editingData[originalPlayer.id]!
@@ -470,7 +579,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     : 'border-[#E8ECEF]'
                 }`}
               >
-                {/* 1行目 */}
+                {/* 1行目: 選手情報 + 合計的中数 */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 overflow-hidden">
                     {/* Rank Badge */}
@@ -501,7 +610,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     </div>
                   </div>
 
-                  {/* Total */}
+                  {/* 合計的中数 */}
                   <div className="flex flex-col items-end ml-2 flex-shrink-0">
                     <div className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       Total
@@ -515,9 +624,9 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                   </div>
                 </div>
 
-                {/* 3行目 */}
+                {/* 3行目: 修正/決定ボタン & 決勝区分・カウンター入力エリア */}
                 <div className="p-3 bg-white border-t border-[#E8ECEF] flex items-center gap-3">
-                  {/* 修正/決定ボタン */}
+                  {/* 左側: 修正/決定ボタン */}
                   <div className="flex-shrink-0">
                     {isEditing ? (
                       <button
@@ -543,7 +652,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     )}
                   </div>
 
-                  {/* 入力エリア */}
+                  {/* 右側: 入力エリア枠 */}
                   <div
                     className={`flex-1 flex flex-wrap items-center justify-center gap-4 p-2 rounded-lg border bg-gray-50/50 transition-colors ${
                       isEditing
@@ -551,6 +660,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                         : 'border-[#E8ECEF]'
                     }`}
                   >
+                    {/* グループ1: 方式選択 */}
                     <div
                       className={`flex flex-col items-center transition-opacity ${
                         !isEditing ? 'opacity-50 pointer-events-none' : ''
@@ -595,6 +705,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                       </div>
                     </div>
 
+                    {/* グループ2: 射詰的中数カウンター */}
                     <div
                       className={`flex flex-col items-center transition-opacity ${
                         !isEditing ? 'opacity-50 pointer-events-none' : ''
@@ -628,6 +739,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                       </div>
                     </div>
 
+                    {/* グループ3: 射遠順位カウンター */}
                     <div
                       className={`flex flex-col items-center transition-opacity ${
                         !isEditing ? 'opacity-50 pointer-events-none' : ''
@@ -697,7 +809,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                       <h3 className="text-lg font-bold text-[#324857] border-l-4 border-[#86AC41] pl-3">
                         第{pairIndex}組-{shajo}
                       </h3>
-                      {/* ステータスバッジを削除しました */}
                     </div>
                     <div className="text-sm text-[#7DA3A1] pl-3 truncate font-medium">
                       {group.map((p) => p.player_name).join(', ')}
