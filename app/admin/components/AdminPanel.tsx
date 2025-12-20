@@ -10,10 +10,10 @@ import {
   Save,
   Search,
   UserX,
-  UserCheck,
   RefreshCw,
   Trophy,
   Activity,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -34,34 +34,41 @@ export default function AdminPanel({
   const [settings, setSettings] = useState(initialSettings);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 参加者検索用
   const [searchTerm, setSearchTerm] = useState('');
 
   // ----------------------------------------------------------------
   // データ更新ハンドラ
   // ----------------------------------------------------------------
 
-  // 欠席ステータスの切り替え
-  const toggleAbsent = async (playerId: string, currentStatus: boolean) => {
-    // Optimistic update
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === playerId ? { ...p, is_absent: !currentStatus } : p
-      )
-    );
+  // 欠席処理（一方通行・立順繰り上げ）
+  const handleMakeAbsent = async (player: any) => {
+    const confirmMessage = `${player.participants?.name} (No.${player.bib_number}) を欠席にしますか？\n\n【重要】\n・この操作は取り消せません。\n・後続の選手の立順が自動的に繰り上がります。`;
 
-    const { error } = await supabase
-      .from('entries')
-      .update({ is_absent: !currentStatus })
-      .eq('id', playerId);
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
 
-    if (error) {
-      alert('更新に失敗しました');
+    try {
+      setIsSaving(true);
+
+      const { error } = await supabase.rpc('handle_absent_player', {
+        target_player_id: player.id,
+      });
+
+      if (error) throw error;
+
+      alert('欠席処理が完了しました。立順を繰り上げました。');
+
       router.refresh();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('処理に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // 設定の保存（お知らせ、入賞枠、フェーズ）
+  // 設定の保存
   const saveSettings = async () => {
     setIsSaving(true);
     const { error } = await supabase
@@ -80,7 +87,6 @@ export default function AdminPanel({
     router.refresh();
   };
 
-  // 設定値の変更ハンドラ
   const handleSettingChange = (field: string, value: any) => {
     setSettings((prev: any) => ({ ...prev, [field]: value }));
   };
@@ -125,7 +131,7 @@ export default function AdminPanel({
       </div>
 
       {/* =================================================================
-          ダッシュボード (進行管理 & お知らせ)
+          ダッシュボード
          ================================================================= */}
       {activeTab === 'dashboard' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -136,7 +142,7 @@ export default function AdminPanel({
             </h2>
             <div className="space-y-3">
               {[
-                { val: 'preparing', label: '準備中。。。' }, // 追加
+                { val: 'preparing', label: '準備中。。。' },
                 { val: 'qualifier', label: '予選進行中' },
                 { val: 'tally', label: '集計中' },
                 { val: 'final', label: '決勝進行中' },
@@ -222,111 +228,123 @@ export default function AdminPanel({
       )}
 
       {/* =================================================================
-          参加者管理 (欠席設定など)
+          参加者管理 (欠席設定)
          ================================================================= */}
       {activeTab === 'players' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center">
-              <Users className="mr-2" /> 参加者一覧 ({filteredPlayers.length}名)
-            </h2>
-            <div className="relative w-full sm:w-64">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="名前、チーム、No.で検索"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
-              />
+        <div className="space-y-4">
+          {/* ★注意文の追加 */}
+          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg shadow-sm flex items-start">
+            <AlertTriangle
+              className="text-yellow-600 mr-3 flex-shrink-0 mt-0.5"
+              size={20}
+            />
+            <div className="text-sm text-yellow-800">
+              <p className="font-bold mb-1">欠席処理に関する重要な注意</p>
+              <p className="leading-relaxed">
+                「欠席にする」ボタンを押すと、対象者はリストから除外され、
+                <strong>後続の全選手の立順が自動的に繰り上がります。</strong>
+                <br />
+                この操作はシステム上で取り消す（元に戻す）ことができません。操作は慎重に行ってください。
+              </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3">No.</th>
-                  <th className="px-6 py-3">氏名 / 所属</th>
-                  <th className="px-6 py-3 text-center">状態</th>
-                  <th className="px-6 py-3 text-center">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPlayers.map((player: any) => (
-                  <tr
-                    key={player.id}
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                      player.is_absent ? 'bg-red-50' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4 font-bold text-gray-900">
-                      {player.bib_number}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">
-                        {player.participants?.name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {player.participants?.teams?.name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {player.is_absent ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          欠席
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          出席
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() =>
-                          toggleAbsent(player.id, player.is_absent)
-                        }
-                        className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                          player.is_absent
-                            ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                            : 'bg-red-100 text-red-700 hover:bg-red-200'
-                        }`}
-                      >
-                        {player.is_absent ? (
-                          <>
-                            <UserCheck size={14} className="mr-1" /> 出席に戻す
-                          </>
-                        ) : (
-                          <>
-                            <UserX size={14} className="mr-1" /> 欠席にする
-                          </>
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredPlayers.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <Users className="mr-2" /> 参加者一覧 ({filteredPlayers.length}
+                名)
+              </h2>
+              <div className="relative w-full sm:w-64">
+                <Search
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  placeholder="名前、チーム、No.で検索"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-gray-600">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-6 py-8 text-center text-gray-400"
-                    >
-                      該当する選手が見つかりません
-                    </td>
+                    <th className="px-6 py-3">No.</th>
+                    <th className="px-6 py-3">氏名 / 所属</th>
+                    <th className="px-6 py-3 text-center">状態</th>
+                    <th className="px-6 py-3 text-center">操作</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredPlayers.map((player: any) => (
+                    <tr
+                      key={player.id}
+                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                        player.is_absent ? 'bg-gray-100 text-gray-400' : ''
+                      }`}
+                    >
+                      <td className="px-6 py-4 font-bold">
+                        {player.bib_number}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold">
+                          {player.participants?.name}
+                        </div>
+                        <div className="text-xs">
+                          {player.participants?.teams?.name}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {player.is_absent ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+                            欠席
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            出席
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {!player.is_absent && (
+                          <button
+                            onClick={() => handleMakeAbsent(player)}
+                            disabled={isSaving}
+                            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 transition-colors disabled:opacity-50"
+                          >
+                            <UserX size={14} className="mr-1" /> 欠席にする
+                          </button>
+                        )}
+                        {player.is_absent && (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredPlayers.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-6 py-8 text-center text-gray-400"
+                      >
+                        該当する選手が見つかりません
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {/* =================================================================
-          大会設定 (入賞枠など)
+          大会設定
          ================================================================= */}
       {activeTab === 'settings' && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">

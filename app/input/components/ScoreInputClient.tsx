@@ -12,6 +12,7 @@ import {
   Edit2,
   Check,
   Calculator,
+  RotateCcw,
 } from 'lucide-react';
 
 // 外部から参照できるよう export を付与
@@ -266,8 +267,8 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     Record<string, PlayerData>
   >({});
 
-  // 計算中フラグ
-  const [isCalculating, setIsCalculating] = useState(false);
+  // 計算中・リセット中フラグ
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // サーバーからのデータ(players)が更新されたらローカル状態も同期する
   useEffect(() => {
@@ -363,10 +364,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
       if (error) throw error;
 
       // 保存成功時の処理
-
-      // 1. 直近保存データとして登録 (サーバーデータが追いつくまでこれを優先して表示に使う)
       setLastSavedData((prev) => {
-        // 現在の楽観的状態を取得（他の変更が含まれている可能性があるため）
         const currentOptimistic = optimisticPlayers.find(
           (p) => p.id === playerId
         );
@@ -374,15 +372,12 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
         return { ...prev, [playerId]: merged };
       });
 
-      // 2. ローカルの表示用データを即座に更新 (Optimistic Update)
       setOptimisticPlayers((prev) =>
         prev.map((p) => (p.id === playerId ? { ...p, ...dataToSave } : p))
       );
 
-      // 3. サーバーデータの再取得を要求
       router.refresh();
 
-      // 4. 編集モードを終了
       setEditingData((prev) => {
         const next = { ...prev };
         delete next[playerId];
@@ -396,7 +391,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     }
   };
 
-  // ★最終順位の一括計算処理 (修正版: upsertではなく個別updateを使用)
+  // 最終順位の一括計算処理
   const handleCalculateFinalRanking = async () => {
     if (
       !window.confirm(
@@ -405,35 +400,28 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     ) {
       return;
     }
-    setIsCalculating(true);
+    setIsProcessing(true);
     const supabase = createClient();
 
     try {
       // 1. ソート実行
       const sortedPlayers = [...optimisticPlayers].sort((a, b) => {
-        // 優先順位1: 合計スコア (降順)
         if (b.total_score !== a.total_score)
           return b.total_score - a.total_score;
 
-        // 優先順位2: 射遠順位 (昇順: 数字が小さい方が上。nullは一番下)
         const aResult = a.semifinal_results;
         const bResult = b.semifinal_results;
-
         if (aResult !== null && bResult !== null) return aResult - bResult;
-        if (aResult !== null) return -1; // aだけ値がある -> aが上
-        if (bResult !== null) return 1; // bだけ値がある -> bが上
+        if (aResult !== null) return -1;
+        if (bResult !== null) return 1;
 
-        // 優先順位3: ゼッケン番号 (昇順)
         return Number(a.bib_number) - Number(b.bib_number);
       });
 
       // 2. 分割して個別Updateを実行 (バッチ処理)
-      // upsertは400エラーの原因になりやすいため、単純なupdateを並列実行します。
-      const BATCH_SIZE = 10; // 10件ずつ送信
-
+      const BATCH_SIZE = 10;
       for (let i = 0; i < sortedPlayers.length; i += BATCH_SIZE) {
         const batch = sortedPlayers.slice(i, i + BATCH_SIZE);
-
         const promises = batch.map((player, index) => {
           const rank = i + index + 1;
           return supabase
@@ -441,17 +429,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
             .update({ final_ranking: rank })
             .eq('id', player.id);
         });
-
-        // 10件のUpdateを並列実行
-        const results = await Promise.all(promises);
-
-        // エラーチェック
-        for (const result of results) {
-          if (result.error) {
-            console.error('Individual update error:', result.error);
-            throw result.error;
-          }
-        }
+        await Promise.all(promises);
       }
 
       alert('最終順位の計算と保存が完了しました。');
@@ -460,7 +438,43 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
       console.error('Calculation error:', error);
       alert('計算処理に失敗しました。');
     } finally {
-      setIsCalculating(false);
+      setIsProcessing(false);
+    }
+  };
+
+  // ★追加: 最終順位リセット処理
+  const handleResetFinalRanking = async () => {
+    if (
+      !window.confirm(
+        '【警告】\n最終順位をリセットしますか？\n成績閲覧ページの順位表示は「未定」に戻ります。'
+      )
+    ) {
+      return;
+    }
+    setIsProcessing(true);
+    const supabase = createClient();
+
+    try {
+      const allIds = optimisticPlayers.map((p) => p.id);
+      const BATCH_SIZE = 50;
+
+      for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
+        const batchIds = allIds.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase
+          .from('entries')
+          .update({ final_ranking: null }) // nullに更新
+          .in('id', batchIds);
+
+        if (error) throw error;
+      }
+
+      alert('最終順位をリセットしました。');
+      router.refresh();
+    } catch (error) {
+      console.error('Reset error:', error);
+      alert('リセット処理に失敗しました。');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -472,7 +486,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     return chunks;
   };
 
-  // 表示には optimisticPlayers を使用する
   const playerGroups = chunkArray(optimisticPlayers, 5);
 
   let label = '午前1';
@@ -537,33 +550,49 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
 
       {currentTab === 'final' ? (
         <div className="space-y-4">
-          {/* ★追加: 最終順位計算ボタンエリア */}
+          {/* 操作ボタンエリア */}
           <div className="bg-white p-4 rounded-xl border border-[#34675C]/30 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
             <div className="text-sm text-gray-600">
-              <span className="font-bold text-[#34675C]">現在の入力内容</span>
-              に基づいて最終順位を確定します。
+              <span className="font-bold text-[#34675C]">順位確定操作</span>
               <br />
               <span className="text-xs text-gray-400">
-                ※閲覧ページの表示順位が更新されます
+                ※閲覧ページの表示に影響します
               </span>
             </div>
-            <button
-              onClick={handleCalculateFinalRanking}
-              disabled={isCalculating}
-              className="w-full sm:w-auto bg-[#34675C] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#2a524a] active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
-            >
-              {isCalculating ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Calculator className="mr-2 h-5 w-5" />
-              )}
-              最終順位計算
-            </button>
+
+            <div className="flex gap-2 w-full sm:w-auto">
+              {/* リセットボタン */}
+              <button
+                onClick={handleResetFinalRanking}
+                disabled={isProcessing}
+                className="flex-1 sm:flex-none bg-white text-red-500 border border-red-500 font-bold py-3 px-4 rounded-lg shadow-sm hover:bg-red-50 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-5 w-5" />
+                )}
+                <span className="ml-2">リセット</span>
+              </button>
+
+              {/* 計算ボタン */}
+              <button
+                onClick={handleCalculateFinalRanking}
+                disabled={isProcessing}
+                className="flex-1 sm:flex-none bg-[#34675C] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#2a524a] active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <Calculator className="mr-2 h-5 w-5" />
+                )}
+                最終順位計算
+              </button>
+            </div>
           </div>
 
-          {/* optimisticPlayers をマップして表示 */}
+          {/* 選手リスト表示 */}
           {optimisticPlayers.map((originalPlayer) => {
-            // 編集中のデータがあればそれを使用、なければ表示用データを使用
             const isEditing = !!editingData[originalPlayer.id];
             const player = isEditing
               ? editingData[originalPlayer.id]!
@@ -579,10 +608,8 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     : 'border-[#E8ECEF]'
                 }`}
               >
-                {/* 1行目: 選手情報 + 合計的中数 */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1 overflow-hidden">
-                    {/* Rank Badge */}
                     {player.provisional_ranking && (
                       <div className="flex flex-col items-center justify-center w-10 h-10 bg-[#34675C] rounded-full text-white shadow-sm flex-shrink-0">
                         <span className="text-xs font-bold leading-none">
@@ -593,8 +620,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                         </span>
                       </div>
                     )}
-
-                    {/* Player Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-xs font-bold bg-[#E8ECEF] text-[#7B8B9A] px-1.5 py-0.5 rounded">
@@ -609,8 +634,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                       </div>
                     </div>
                   </div>
-
-                  {/* 合計的中数 */}
                   <div className="flex flex-col items-end ml-2 flex-shrink-0">
                     <div className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
                       Total
@@ -623,10 +646,7 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                     </div>
                   </div>
                 </div>
-
-                {/* 3行目: 修正/決定ボタン & 決勝区分・カウンター入力エリア */}
                 <div className="p-3 bg-white border-t border-[#E8ECEF] flex items-center gap-3">
-                  {/* 左側: 修正/決定ボタン */}
                   <div className="flex-shrink-0">
                     {isEditing ? (
                       <button
@@ -651,8 +671,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                       </button>
                     )}
                   </div>
-
-                  {/* 右側: 入力エリア枠 */}
                   <div
                     className={`flex-1 flex flex-wrap items-center justify-center gap-4 p-2 rounded-lg border bg-gray-50/50 transition-colors ${
                       isEditing
@@ -660,7 +678,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                         : 'border-[#E8ECEF]'
                     }`}
                   >
-                    {/* グループ1: 方式選択 */}
                     <div
                       className={`flex flex-col items-center transition-opacity ${
                         !isEditing ? 'opacity-50 pointer-events-none' : ''
@@ -675,14 +692,11 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                             toggleLocalPlayoffType(player.id, 'izume')
                           }
                           disabled={!isEditing}
-                          className={`
-                                py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
-                                ${
-                                  player.playoff_type === 'izume'
-                                    ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-sm'
-                                    : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#CD2C58] hover:text-[#CD2C58]'
-                                }
-                              `}
+                          className={`py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8 ${
+                            player.playoff_type === 'izume'
+                              ? 'bg-[#CD2C58] text-white border-[#CD2C58] shadow-sm'
+                              : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#CD2C58] hover:text-[#CD2C58]'
+                          }`}
                         >
                           射詰
                         </button>
@@ -691,21 +705,16 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                             toggleLocalPlayoffType(player.id, 'enkin')
                           }
                           disabled={!isEditing}
-                          className={`
-                                py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8
-                                ${
-                                  player.playoff_type === 'enkin'
-                                    ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
-                                    : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
-                                }
-                              `}
+                          className={`py-1.5 px-3 rounded text-xs font-bold transition-all border flex items-center justify-center whitespace-nowrap h-8 ${
+                            player.playoff_type === 'enkin'
+                              ? 'bg-[#34675C] text-white border-[#34675C] shadow-sm'
+                              : 'bg-white text-[#7DA3A1] border-[#7DA3A1]/30 hover:border-[#34675C] hover:text-[#34675C]'
+                          }`}
                         >
                           遠近
                         </button>
                       </div>
                     </div>
-
-                    {/* グループ2: 射詰的中数カウンター */}
                     <div
                       className={`flex flex-col items-center transition-opacity ${
                         !isEditing ? 'opacity-50 pointer-events-none' : ''
@@ -738,8 +747,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                         </button>
                       </div>
                     </div>
-
-                    {/* グループ3: 射遠順位カウンター */}
                     <div
                       className={`flex flex-col items-center transition-opacity ${
                         !isEditing ? 'opacity-50 pointer-events-none' : ''
@@ -793,11 +800,9 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
               if (label === '午後1') return p.score_pm1 !== null;
               return false;
             }).length;
-
             const isComplete = filledCount === group.length;
             const pairIndex = Math.floor(groupIndex / 2) + 1;
             const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
-
             return (
               <div
                 key={groupIndex}
@@ -816,14 +821,11 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
                   </div>
                   <button
                     onClick={() => setSelectedGroupIndex(groupIndex)}
-                    className={`
-                      w-full sm:w-auto px-6 py-3 rounded-lg font-bold text-white transition-all shadow-sm flex items-center justify-center gap-2
-                      ${
-                        isComplete
-                          ? 'bg-[#34675C] hover:bg-[#324857]'
-                          : 'bg-[#86AC41] hover:bg-[#34675C]'
-                      }
-                    `}
+                    className={`w-full sm:w-auto px-6 py-3 rounded-lg font-bold text-white transition-all shadow-sm flex items-center justify-center gap-2 ${
+                      isComplete
+                        ? 'bg-[#34675C] hover:bg-[#324857]'
+                        : 'bg-[#86AC41] hover:bg-[#34675C]'
+                    }`}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -839,7 +841,6 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
               </div>
             );
           })}
-
           {playerGroups.length === 0 && (
             <div className="text-center py-10 text-[#7DA3A1] bg-white rounded-xl border border-dashed border-[#7DA3A1]/50">
               表示対象の選手がいません
