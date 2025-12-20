@@ -68,6 +68,7 @@ const ScoreInputModal = ({
       else if (label === '午前2') currentScore = p.score_am2;
       else if (label === '午後1') currentScore = p.score_pm1;
 
+      // DBに値があれば初期値としてセット
       if (currentScore !== null) {
         initialScores[p.id] = currentScore;
       }
@@ -75,8 +76,19 @@ const ScoreInputModal = ({
     setScores(initialScores);
   }, [groupPlayers, label]);
 
+  // 【修正】スコア選択ハンドラ (トグル動作に対応)
   const handleScoreSelect = (id: string, score: number) => {
-    setScores((prev) => ({ ...prev, [id]: score }));
+    setScores((prev) => {
+      const currentScore = prev[id];
+      // 既に同じスコアが選択されていた場合は、選択を解除（キーを削除）
+      if (currentScore === score) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      // それ以外の場合はスコアをセット/更新
+      return { ...prev, [id]: score };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,6 +104,9 @@ const ScoreInputModal = ({
 
       if (!targetColumn) throw new Error('保存先のカラムが特定できません');
 
+      // 入力されたスコアのみ更新対象とする（未選択のデータは変更しない運用の場合）
+      // ※もし「未選択＝nullにする」という仕様なら、groupPlayers全体をループして処理が必要
+      // ここでは「選択されたものだけ更新」として実装
       const updates = Object.entries(scores).map(async ([id, score]) => {
         const { error } = await supabase
           .from('entries')
@@ -99,6 +114,9 @@ const ScoreInputModal = ({
           .eq('id', id);
         if (error) throw error;
       });
+
+      // 未選択の選手（キャンセル扱いでnullにしたい場合）の処理が必要ならここに追加
+      // 現状は「ボタンを押した選手のみ更新」
 
       await Promise.all(updates);
       onSaveSuccess();
@@ -111,6 +129,7 @@ const ScoreInputModal = ({
     }
   };
 
+  // 入力状況カウント用（scoresのキー数を見るため、トグルで解除されると減る）
   const isAllSelected = Object.keys(scores).length === groupPlayers.length;
   const pairIndex = Math.floor(groupIndex / 2) + 1;
   const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
@@ -214,6 +233,7 @@ const ScoreInputModal = ({
             <button
               type="submit"
               form="score-form"
+              // 全員入力済みでなくても保存できるようにする場合は disabled 条件を緩和してください
               disabled={!isAllSelected || isSubmitting}
               className={`
                         px-6 py-2 rounded-lg font-bold text-white shadow-sm transition-all
@@ -478,15 +498,44 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
     }
   };
 
-  const chunkArray = <T,>(array: T[], size: number): T[][] => {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
+  // グループ分けロジック (5人と4人配分 + 例外処理)
+  const createPlayerGroups = <T,>(array: T[]): T[][] => {
+    const totalPlayers = array.length;
+    if (totalPlayers === 0) return [];
+
+    const maxPerGroup = 5;
+    const totalGroups = Math.ceil(totalPlayers / maxPerGroup);
+    const numGroupsOf4 = totalGroups * maxPerGroup - totalPlayers;
+
+    if (numGroupsOf4 > totalGroups) {
+      const baseSize = Math.floor(totalPlayers / totalGroups);
+      const remainder = totalPlayers % totalGroups;
+      const groups: T[][] = [];
+      let startIndex = 0;
+      for (let i = 0; i < totalGroups; i++) {
+        const size = baseSize + (i < remainder ? 1 : 0);
+        groups.push(array.slice(startIndex, startIndex + size));
+        startIndex += size;
+      }
+      return groups;
     }
-    return chunks;
+
+    const numGroupsOf5 = totalGroups - numGroupsOf4;
+    const groups: T[][] = [];
+    let startIndex = 0;
+
+    for (let i = 0; i < numGroupsOf5; i++) {
+      groups.push(array.slice(startIndex, startIndex + 5));
+      startIndex += 5;
+    }
+    for (let i = 0; i < numGroupsOf4; i++) {
+      groups.push(array.slice(startIndex, startIndex + 4));
+      startIndex += 4;
+    }
+    return groups;
   };
 
-  const playerGroups = chunkArray(optimisticPlayers, 5);
+  const playerGroups = createPlayerGroups(optimisticPlayers);
 
   let label = '午前1';
   let maxScore = 2;
