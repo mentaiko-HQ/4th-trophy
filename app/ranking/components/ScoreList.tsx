@@ -85,6 +85,7 @@ export default function ScoreList({
 
   // アニメーション表示状態の管理
   const [showOpening, setShowOpening] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   // 初回訪問判定とアニメーション制御
@@ -98,8 +99,13 @@ export default function ScoreList({
 
       const timer = setTimeout(() => {
         setShowOpening(false);
-      }, 1500); // アニメーション時間に合わせて調整
+      }, 2100);
+
+      setIsInitialized(true);
       return () => clearTimeout(timer);
+    } else {
+      setShowOpening(false);
+      setIsInitialized(true);
     }
   }, []);
 
@@ -345,8 +351,13 @@ export default function ScoreList({
     : [filteredPlayers];
 
   // =========================================================
-  // レンダリング
+  // レンダリング制御
   // =========================================================
+
+  if (!isInitialized) {
+    return <div className="min-h-screen bg-white"></div>;
+  }
+
   return (
     <>
       {/* アニメーション用オーバーレイ */}
@@ -354,7 +365,7 @@ export default function ScoreList({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 2.1s linear 0s 1;
+              animation: poyon 1.8s linear 0s 1;
             }
             @keyframes poyon {
               0% {
@@ -372,10 +383,10 @@ export default function ScoreList({
                 transform: scale(0.9, 1.1) translate(0%, -10%);
               }
               40% {
-                transform: scale(0.95, 1.2) translate(0%, -30%);
+                transform: scale(0.95, 1.2) translate(0%, -40%);
               }
               50% {
-                transform: scale(0.95, 1.2) translate(0%, -10%);
+                transform: scale(0.95, 1.2) translate(0%, -20%);
               }
               60% {
                 transform: scale(1.1, 0.9) translate(0%, 5%);
@@ -389,7 +400,6 @@ export default function ScoreList({
             }
           `}</style>
           <div className="poyon flex flex-col items-center">
-            {/* 画像への差し替え */}
             <img
               src="/images/matomentaiko.png"
               alt="Opening Animation"
