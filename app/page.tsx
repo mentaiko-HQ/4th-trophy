@@ -52,7 +52,7 @@ export default function Home() {
       <header className="bg-[oklch(0.455_0.076_172.5)] text-white p-6 shadow-md">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold text-center tracking-wide">
-            弓道大会 成績管理システム
+            ４め杯 運営管理システム
           </h1>
         </div>
       </header>
@@ -88,7 +88,7 @@ export default function Home() {
 
       {/* フッター */}
       <footer className="p-6 text-center text-xs text-gray-400">
-        <p>&copy; Kyudo Tournament Management System</p>
+        <p>&copy; mentaikotrophy-HQ</p>
       </footer>
     </div>
   );

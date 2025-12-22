@@ -10,8 +10,8 @@ const mPlus = M_PLUS_Rounded_1c({
 });
 
 export const metadata: Metadata = {
-  title: '弓道大会 成績管理',
-  description: 'Kyudo Tournament Management System',
+  title: '４め杯 運営管理',
+  description: '4th Mentaikotrophy Management System',
 };
 
 export default function RootLayout({
