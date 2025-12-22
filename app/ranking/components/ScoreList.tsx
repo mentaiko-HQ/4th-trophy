@@ -545,7 +545,7 @@ export default function ScoreList({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            午前1
+            午前1立目
           </button>
           <button
             onClick={() => setActiveTab('am2')}
@@ -555,7 +555,7 @@ export default function ScoreList({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            午前2
+            午前2立目
           </button>
           <button
             onClick={() => setActiveTab('pm1')}
@@ -565,7 +565,7 @@ export default function ScoreList({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            午後1
+            午後1立目
           </button>
           <button
             onClick={() => setActiveTab('total')}

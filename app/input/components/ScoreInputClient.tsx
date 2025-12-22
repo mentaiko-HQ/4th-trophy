@@ -537,14 +537,14 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
 
   const playerGroups = createPlayerGroups(optimisticPlayers);
 
-  let label = '午前1';
+  let label = '午前1立目立目';
   let maxScore = 2;
   if (currentTab === 'am2') {
-    label = '午前2';
+    label = '午前2立目';
     maxScore = 2;
   }
   if (currentTab === 'pm1') {
-    label = '午後1';
+    label = '午後1立目';
     maxScore = 4;
   }
   if (currentTab === 'final') {
@@ -575,19 +575,19 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
           onClick={() => handleTabChange('am1')}
           className={getTabClass('am1')}
         >
-          午前1
+          午前1立目
         </button>
         <button
           onClick={() => handleTabChange('am2')}
           className={getTabClass('am2')}
         >
-          午前2
+          午前2立目
         </button>
         <button
           onClick={() => handleTabChange('pm1')}
           className={getTabClass('pm1')}
         >
-          午後1
+          午後1立目
         </button>
         <button
           onClick={() => handleTabChange('final')}
