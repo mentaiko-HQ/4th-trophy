@@ -16,7 +16,6 @@ export default async function RankingPage() {
     .single();
 
   // 2. データの取得とソート
-  // 【修正】欠席者 (is_absent = true) を除外するフィルタを追加
   const { data: entries, error } = await supabase
     .from('entries')
     .select(
@@ -24,13 +23,15 @@ export default async function RankingPage() {
       *,
       participants (
         name,
+        dan_rank,
+        carriage,
         teams (
           name
         )
       )
     `
     )
-    .neq('is_absent', true) // 欠席フラグが true でない（false または null）データを取得
+    .neq('is_absent', true) // ★追加: 欠席者を除外するフィルタ
     // 優先順位1: 合計的中数 (降順)
     .order('total_score', { ascending: false })
     // 優先順位2: 射遠順位 (昇順: 1位, 2位... NULLは後ろ)
@@ -63,9 +64,13 @@ export default async function RankingPage() {
     (entry: any, index: number) => {
       const playerName = entry.participants?.name ?? '不明な選手';
       const teamName = entry.participants?.teams?.name ?? '所属なし';
+      // 段位・所作の取得
+      const danRank = entry.participants?.dan_rank;
+      const carriage = entry.participants?.carriage;
+
       const score = entry.total_score || 0;
 
-      // --- 暫定順位の計算（合計スコアのみ比較） ---
+      // --- 暫定順位の計算 ---
       if (index > 0) {
         if (score !== prevScore) {
           currentProvRank += sameProvRankCount + 1;
@@ -84,6 +89,8 @@ export default async function RankingPage() {
         bib_number: entry.bib_number,
         player_name: playerName,
         team_name: teamName,
+        dan_rank: danRank,
+        carriage: carriage,
         order_am1: entry.order_am1,
         order_am2: entry.order_am2,
         order_pm1: entry.order_pm1,
@@ -103,7 +110,7 @@ export default async function RankingPage() {
     }
   );
 
-  // 4. 競射（順位決定戦）対象者の抽出ロジック
+  // 4. 競射対象者の抽出
   const prizeCount = settings?.individual_prize_count || 0;
   const playoffPlayers: PlayerData[] = [];
 
@@ -118,7 +125,6 @@ export default async function RankingPage() {
     });
 
     rankMap.forEach((group, rank) => {
-      // 入賞枠内かつ同点者が複数いる場合は抽出
       if (rank <= prizeCount && group.length > 1) {
         playoffPlayers.push(...group);
       }
