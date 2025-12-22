@@ -76,7 +76,7 @@ export default function AdminPanel({
       .update({
         announcement: settings.announcement,
         individual_prize_count: settings.individual_prize_count,
-        team_prize_count: settings.team_prize_count,
+        // team_prize_count: settings.team_prize_count, // 削除: 団体入賞枠は更新対象外
         current_phase: settings.current_phase,
       })
       .eq('id', settings.id);
@@ -232,7 +232,7 @@ export default function AdminPanel({
          ================================================================= */}
       {activeTab === 'players' && (
         <div className="space-y-4">
-          {/* ★注意文の追加 */}
+          {/* 注意文 */}
           <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg shadow-sm flex items-start">
             <AlertTriangle
               className="text-yellow-600 mr-3 flex-shrink-0 mt-0.5"
@@ -352,7 +352,7 @@ export default function AdminPanel({
             <Settings className="mr-2" /> 大会基本設定
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
                 <Trophy size={16} className="mr-1 text-yellow-600" />{' '}
@@ -378,29 +378,7 @@ export default function AdminPanel({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
-                <Users size={16} className="mr-1 text-blue-600" /> 団体入賞枠数
-              </label>
-              <p className="text-xs text-gray-500 mb-2">
-                団体戦の上位何チームを入賞とするか設定します。
-              </p>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  min="1"
-                  value={settings.team_prize_count || 0}
-                  onChange={(e) =>
-                    handleSettingChange(
-                      'team_prize_count',
-                      Number(e.target.value)
-                    )
-                  }
-                  className="w-24 p-2 border border-gray-300 rounded-lg text-center font-bold"
-                />
-                <span className="ml-2 text-gray-700">位まで</span>
-              </div>
-            </div>
+            {/* 団体入賞枠設定は削除しました */}
           </div>
 
           <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
