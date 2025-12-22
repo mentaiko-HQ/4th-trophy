@@ -98,7 +98,7 @@ export default function ScoreList({
 
       const timer = setTimeout(() => {
         setShowOpening(false);
-      }, 1500);
+      }, 1500); // アニメーション時間に合わせて調整
       return () => clearTimeout(timer);
     }
   }, []);
@@ -354,7 +354,7 @@ export default function ScoreList({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 1.1s linear 0s 1;
+              animation: poyon 2.1s linear 0s 1;
             }
             @keyframes poyon {
               0% {
@@ -389,8 +389,14 @@ export default function ScoreList({
             }
           `}</style>
           <div className="poyon flex flex-col items-center">
-            <Target size={120} className="text-[#34675C]" />
-            <p className="mt-4 text-[#34675C] font-bold text-xl">Loading...</p>
+            {/* 画像への差し替え */}
+            <img
+              src="/images/matomentaiko.png"
+              alt="Opening Animation"
+              width={200}
+              height={200}
+              className="object-contain"
+            />
           </div>
         </div>
       )}
