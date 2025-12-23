@@ -108,7 +108,7 @@ export default function ScoreList({
 
       const timer = setTimeout(() => {
         setShowOpening(false);
-      }, 1500);
+      }, 2000);
 
       setIsInitialized(true);
       return () => clearTimeout(timer);
@@ -410,7 +410,7 @@ export default function ScoreList({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 1.1s linear 0s 1;
+              animation: poyon 1.5s linear 0s 1;
             }
             @keyframes poyon {
               0% {
@@ -425,13 +425,13 @@ export default function ScoreList({
                 transform: scale(1.4, 0.6) translate(0%, 30%);
               }
               30% {
-                transform: scale(0.9, 1.1) translate(0%, -10%);
+                transform: scale(0.9, 1.1) translate(0%, -15%);
               }
               40% {
-                transform: scale(0.95, 1.2) translate(0%, -30%);
+                transform: scale(0.95, 1.2) translate(0%, -40%);
               }
               50% {
-                transform: scale(0.95, 1.2) translate(0%, -10%);
+                transform: scale(0.95, 1.2) translate(0%, -15%);
               }
               60% {
                 transform: scale(1.1, 0.9) translate(0%, 5%);
