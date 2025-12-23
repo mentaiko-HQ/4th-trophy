@@ -31,7 +31,7 @@ export default async function RankingPage() {
       )
     `
     )
-    .neq('is_absent', true) // ★追加: 欠席者を除外するフィルタ
+    .neq('is_absent', true)
     // 優先順位1: 合計的中数 (降順)
     .order('total_score', { ascending: false })
     // 優先順位2: 射遠順位 (昇順: 1位, 2位... NULLは後ろ)

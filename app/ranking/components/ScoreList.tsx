@@ -410,7 +410,7 @@ export default function ScoreList({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 1.5s linear 0s 1;
+              animation: poyon 1.8s linear 0s 1;
             }
             @keyframes poyon {
               0% {
