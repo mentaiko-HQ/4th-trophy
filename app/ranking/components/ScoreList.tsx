@@ -6,6 +6,7 @@ import {
   Target,
   Filter,
   ChevronRight,
+  ChevronLeft,
   Search,
   X,
   Medal,
@@ -97,10 +98,35 @@ export default function ScoreList({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  // タブスクロール用のRef
+  // タブスクロール管理用のRefとState
   const tabsListRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // 初回訪問判定とアニメーション制御
+  // スクロール可能かどうかの判定処理
+  const checkScroll = () => {
+    if (tabsListRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsListRef.current;
+      // 左にスクロールできるか（現在位置が0より大きいか）
+      setCanScrollLeft(scrollLeft > 0);
+      // 右にスクロールできるか（現在位置 + 表示幅 が 全体の幅より小さいか）
+      // 誤差対策で -1 しています
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  // スクロール操作関数
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsListRef.current) {
+      const scrollAmount = 150; // 1回あたりのスクロール量
+      tabsListRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // 初回訪問判定とアニメーション制御 & スクロール監視の初期化
   useEffect(() => {
     setIsClient(true);
     const hasSeen = sessionStorage.getItem('hasSeenRankingOpening');
@@ -111,31 +137,25 @@ export default function ScoreList({
 
       const timer = setTimeout(() => {
         setShowOpening(false);
-      }, 2000);
+      }, 1500);
 
       setIsInitialized(true);
+      // アニメーション完了後にスクロール判定を行う
+      setTimeout(checkScroll, 1600);
       return () => clearTimeout(timer);
     } else {
       setShowOpening(false);
       setIsInitialized(true);
+      // 即座にスクロール判定
+      setTimeout(checkScroll, 0);
     }
   }, []);
 
-  // ★追加: タブ切り替え時の自動スクロール処理
+  // ウィンドウリサイズ時にもスクロール判定を更新
   useEffect(() => {
-    if (tabsListRef.current) {
-      const activeElement = tabsListRef.current.querySelector(
-        `[data-tab="${activeTab}"]`
-      ) as HTMLElement;
-      if (activeElement) {
-        activeElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-          inline: 'center', // 画面の中央に来るようにスクロール
-        });
-      }
-    }
-  }, [activeTab]);
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, []);
 
   // 安全な配列データを確保
   const safePlayers = useMemo(
@@ -549,73 +569,109 @@ export default function ScoreList({
           </button>
         </div>
 
-        {/* タブナビゲーション */}
-        {/* refを追加して自動スクロールのターゲットにする */}
-        <div
-          ref={tabsListRef}
-          className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200 overflow-x-auto no-scrollbar scroll-smooth"
-        >
-          <button
-            data-tab="order_list"
-            onClick={() => setActiveTab('order_list')}
-            className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-              activeTab === 'order_list'
-                ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
+        {/* タブナビゲーションエリア */}
+        <div className="relative mb-4 group">
+          {/* 左矢印 */}
+          {canScrollLeft && (
+            <button
+              onClick={() => scrollTabs('left')}
+              className="absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-gray-50 to-transparent flex items-center justify-start pl-1"
+              aria-label="左へスクロール"
+            >
+              <ChevronLeft
+                size={20}
+                className="text-[#34675C] drop-shadow-sm"
+              />
+            </button>
+          )}
+
+          {/* タブリスト */}
+          <div
+            ref={tabsListRef}
+            onScroll={checkScroll}
+            className="flex bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200 overflow-x-auto no-scrollbar scroll-smooth relative"
           >
-            立順表
-          </button>
-          <button
-            onClick={() => setActiveTab('am1')}
-            className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-              activeTab === 'am1'
-                ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            1立目
-          </button>
-          <button
-            onClick={() => setActiveTab('am2')}
-            className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-              activeTab === 'am2'
-                ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            2立目
-          </button>
-          <button
-            onClick={() => setActiveTab('pm1')}
-            className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-              activeTab === 'pm1'
-                ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            3立目
-          </button>
-          <button
-            onClick={() => setActiveTab('total')}
-            className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-              activeTab === 'total'
-                ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            総合成績
-          </button>
-          <button
-            onClick={() => setActiveTab('reference')}
-            className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-              activeTab === 'reference'
-                ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            参考成績
-          </button>
+            <button
+              data-tab="order_list"
+              onClick={() => setActiveTab('order_list')}
+              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                activeTab === 'order_list'
+                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              立順表
+            </button>
+            <button
+              data-tab="am1"
+              onClick={() => setActiveTab('am1')}
+              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                activeTab === 'am1'
+                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              午前1
+            </button>
+            <button
+              data-tab="am2"
+              onClick={() => setActiveTab('am2')}
+              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                activeTab === 'am2'
+                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              午前2
+            </button>
+            <button
+              data-tab="pm1"
+              onClick={() => setActiveTab('pm1')}
+              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                activeTab === 'pm1'
+                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              午後1
+            </button>
+            <button
+              data-tab="total"
+              onClick={() => setActiveTab('total')}
+              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                activeTab === 'total'
+                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              総合成績
+            </button>
+            <button
+              data-tab="reference"
+              onClick={() => setActiveTab('reference')}
+              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+                activeTab === 'reference'
+                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              参考成績
+            </button>
+          </div>
+
+          {/* 右矢印 */}
+          {canScrollRight && (
+            <button
+              onClick={() => scrollTabs('right')}
+              className="absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-gray-50 to-transparent flex items-center justify-end pr-1"
+              aria-label="右へスクロール"
+            >
+              <ChevronRight
+                size={20}
+                className="text-[#34675C] drop-shadow-sm"
+              />
+            </button>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -646,9 +702,9 @@ export default function ScoreList({
                           <tr>
                             <th className="px-4 py-2 text-left">名称</th>
                             <th className="px-2 py-2">人数</th>
-                            <th className="px-2 py-2">1立目</th>
-                            <th className="px-2 py-2">2立目</th>
-                            <th className="px-2 py-2">3立目</th>
+                            <th className="px-2 py-2">午前1</th>
+                            <th className="px-2 py-2">午前2</th>
+                            <th className="px-2 py-2">午後1</th>
                             <th className="px-2 py-2 bg-[#F8FAFC] font-bold text-[#34675C]">
                               平均合計
                             </th>
@@ -723,9 +779,9 @@ export default function ScoreList({
                     >
                       <option value="bib_number">No. (ID)</option>
                       <option value="player_name">氏名</option>
-                      <option value="order_am1">１立順</option>
-                      <option value="order_am2">２立順</option>
-                      <option value="order_pm1">３立順</option>
+                      <option value="order_am1">午前1立順</option>
+                      <option value="order_am2">午前2立順</option>
+                      <option value="order_pm1">午後立順</option>
                     </select>
                     <button
                       onClick={() =>
@@ -800,7 +856,7 @@ export default function ScoreList({
                             <div className="flex bg-[#F8FAFC] divide-x divide-[#E8ECEF]">
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  １立順
+                                  午前1立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am1,
@@ -809,7 +865,7 @@ export default function ScoreList({
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  ２立順
+                                  午前2立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am2,
@@ -818,7 +874,7 @@ export default function ScoreList({
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  ３立順
+                                  午後立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_pm1,
