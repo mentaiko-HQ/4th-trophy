@@ -681,10 +681,10 @@ export default function ScoreList({
               {['team_name', 'dan_rank', 'carriage'].map((key) => {
                 const title =
                   key === 'team_name'
-                    ? 'チーム別成績'
+                    ? 'チーム別的中数'
                     : key === 'dan_rank'
-                    ? '段位別成績'
-                    : '所作別成績';
+                    ? '段位別的中数'
+                    : '所作別的中数';
                 const stats = calculateReferenceStats(key as any);
 
                 return (
@@ -702,11 +702,11 @@ export default function ScoreList({
                           <tr>
                             <th className="px-4 py-2 text-left">名称</th>
                             <th className="px-2 py-2">人数</th>
-                            <th className="px-2 py-2">午前1</th>
-                            <th className="px-2 py-2">午前2</th>
-                            <th className="px-2 py-2">午後1</th>
+                            <th className="px-2 py-2">午前1立目</th>
+                            <th className="px-2 py-2">午前2立目</th>
+                            <th className="px-2 py-2">午後1立目</th>
                             <th className="px-2 py-2 bg-[#F8FAFC] font-bold text-[#34675C]">
-                              平均合計
+                              平均的中数
                             </th>
                           </tr>
                         </thead>
