@@ -448,9 +448,14 @@ export default function ScoreList({
             <img
               src="/images/matomentaiko.png"
               alt="Opening Animation"
+              // width/height属性はアスペクト比維持の基準として残すが、表示サイズはCSSで上書きされる
               width={200}
               height={200}
-              className="object-contain"
+              // 【変更点】
+              // w-[40vw]: 画面幅の40%
+              // max-w-[200px]: 最大200px
+              // h-auto: 高さ自動調整
+              className="object-contain w-[40vw] max-w-[200px] h-auto"
             />
           </div>
         </div>
