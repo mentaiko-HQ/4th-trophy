@@ -360,7 +360,7 @@ export default function ScoreList({
     ? createPlayerGroups(filteredPlayers)
     : [filteredPlayers];
 
-  // ★集計ロジック (参考成績タブ用)
+  // 集計ロジック (参考成績タブ用)
   const calculateReferenceStats = (
     key: 'team_name' | 'dan_rank' | 'carriage'
   ) => {
@@ -550,7 +550,7 @@ export default function ScoreList({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            午前1立目
+            1立目
           </button>
           <button
             onClick={() => setActiveTab('am2')}
@@ -560,7 +560,7 @@ export default function ScoreList({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            午前2立目
+            2立目
           </button>
           <button
             onClick={() => setActiveTab('pm1')}
@@ -570,7 +570,7 @@ export default function ScoreList({
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            午後1立目
+            3立目
           </button>
           <button
             onClick={() => setActiveTab('total')}
@@ -622,9 +622,9 @@ export default function ScoreList({
                           <tr>
                             <th className="px-4 py-2 text-left">名称</th>
                             <th className="px-2 py-2">人数</th>
-                            <th className="px-2 py-2">午前1</th>
-                            <th className="px-2 py-2">午前2</th>
-                            <th className="px-2 py-2">午後1</th>
+                            <th className="px-2 py-2">1立目</th>
+                            <th className="px-2 py-2">2立目</th>
+                            <th className="px-2 py-2">3立目</th>
                             <th className="px-2 py-2 bg-[#F8FAFC] font-bold text-[#34675C]">
                               平均合計
                             </th>
@@ -699,9 +699,9 @@ export default function ScoreList({
                     >
                       <option value="bib_number">No. (ID)</option>
                       <option value="player_name">氏名</option>
-                      <option value="order_am1">午前1立順</option>
-                      <option value="order_am2">午前2立順</option>
-                      <option value="order_pm1">午後立順</option>
+                      <option value="order_am1">１立順</option>
+                      <option value="order_am2">２立順</option>
+                      <option value="order_pm1">３立順</option>
                     </select>
                     <button
                       onClick={() =>
@@ -776,7 +776,7 @@ export default function ScoreList({
                             <div className="flex bg-[#F8FAFC] divide-x divide-[#E8ECEF]">
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午前1立順
+                                  １立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am1,
@@ -785,7 +785,7 @@ export default function ScoreList({
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午前2立順
+                                  ２立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am2,
@@ -794,7 +794,7 @@ export default function ScoreList({
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午後立順
+                                  ３立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_pm1,
