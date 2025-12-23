@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Trophy,
   Target,
@@ -97,6 +97,9 @@ export default function ScoreList({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
+  // タブスクロール用のRef
+  const tabsListRef = useRef<HTMLDivElement>(null);
+
   // 初回訪問判定とアニメーション制御
   useEffect(() => {
     setIsClient(true);
@@ -117,6 +120,22 @@ export default function ScoreList({
       setIsInitialized(true);
     }
   }, []);
+
+  // ★追加: タブ切り替え時の自動スクロール処理
+  useEffect(() => {
+    if (tabsListRef.current) {
+      const activeElement = tabsListRef.current.querySelector(
+        `[data-tab="${activeTab}"]`
+      ) as HTMLElement;
+      if (activeElement) {
+        activeElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center', // 画面の中央に来るようにスクロール
+        });
+      }
+    }
+  }, [activeTab]);
 
   // 安全な配列データを確保
   const safePlayers = useMemo(
@@ -531,8 +550,13 @@ export default function ScoreList({
         </div>
 
         {/* タブナビゲーション */}
-        <div className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200 overflow-x-auto">
+        {/* refを追加して自動スクロールのターゲットにする */}
+        <div
+          ref={tabsListRef}
+          className="flex bg-white shadow-sm mb-4 rounded-lg overflow-hidden border border-gray-200 overflow-x-auto no-scrollbar scroll-smooth"
+        >
           <button
+            data-tab="order_list"
             onClick={() => setActiveTab('order_list')}
             className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
               activeTab === 'order_list'
