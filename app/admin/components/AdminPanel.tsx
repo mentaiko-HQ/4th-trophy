@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import {
@@ -14,6 +14,12 @@ import {
   Trophy,
   Activity,
   AlertTriangle,
+  Database,
+  Upload,
+  Trash2,
+  FileText,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -28,37 +34,31 @@ export default function AdminPanel({
   const router = useRouter();
   const supabase = createClient();
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'players' | 'settings'
+    'dashboard' | 'players' | 'settings' | 'data'
   >('dashboard');
   const [players, setPlayers] = useState(initialPlayers);
   const [settings, setSettings] = useState(initialSettings);
   const [isSaving, setIsSaving] = useState(false);
-
   const [searchTerm, setSearchTerm] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ----------------------------------------------------------------
   // データ更新ハンドラ
   // ----------------------------------------------------------------
 
-  // 欠席処理（一方通行・立順繰り上げ）
+  // 欠席処理
   const handleMakeAbsent = async (player: any) => {
     const confirmMessage = `${player.participants?.name} (No.${player.bib_number}) を欠席にしますか？\n\n【重要】\n・この操作は取り消せません。\n・後続の選手の立順が自動的に繰り上がります。`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    if (!window.confirm(confirmMessage)) return;
 
     try {
       setIsSaving(true);
-
       const { error } = await supabase.rpc('handle_absent_player', {
         target_player_id: player.id,
       });
-
       if (error) throw error;
-
-      alert('欠席処理が完了しました。立順を繰り上げました。');
-
+      alert('欠席処理が完了しました。');
       router.refresh();
     } catch (error) {
       console.error('Error:', error);
@@ -68,7 +68,7 @@ export default function AdminPanel({
     }
   };
 
-  // 設定の保存
+  // 設定保存 (ダッシュボード & 大会設定共通)
   const saveSettings = async () => {
     setIsSaving(true);
     const { error } = await supabase
@@ -76,8 +76,10 @@ export default function AdminPanel({
       .update({
         announcement: settings.announcement,
         individual_prize_count: settings.individual_prize_count,
-        // team_prize_count: settings.team_prize_count, // 削除: 団体入賞枠は更新対象外
         current_phase: settings.current_phase,
+        // ★追加: 表示設定の保存
+        show_phase: settings.show_phase,
+        show_announcement: settings.show_announcement,
       })
       .eq('id', settings.id);
 
@@ -87,8 +89,91 @@ export default function AdminPanel({
     router.refresh();
   };
 
+  // 設定値の変更ハンドラ
   const handleSettingChange = (field: string, value: any) => {
     setSettings((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  // ----------------------------------------------------------------
+  // データ管理ハンドラ (リセット & インポート)
+  // ----------------------------------------------------------------
+
+  const handleResetData = async () => {
+    if (
+      !window.confirm(
+        '【警告】\n全ての参加者データ、成績データ、チームデータを完全に削除します。\n本当に実行しますか？'
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        '【最終確認】\nこの操作は取り消せません。\n本当にデータをリセットしてよろしいですか？'
+      )
+    )
+      return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('reset_tournament_data');
+      if (error) throw error;
+      alert('データをリセットしました。');
+      router.refresh();
+    } catch (error) {
+      console.error('Reset error:', error);
+      alert('リセットに失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      try {
+        setIsSaving(true);
+        const rows = text
+          .split('\n')
+          .map((row) => row.trim())
+          .filter((row) => row);
+        const headers = rows[0].split(',').map((h) => h.trim());
+
+        const requiredColumns = ['bib_number', 'player_name', 'team_name'];
+        const missing = requiredColumns.filter((col) => !headers.includes(col));
+        if (missing.length > 0) {
+          throw new Error(`必須カラムが見つかりません: ${missing.join(', ')}`);
+        }
+
+        const jsonData = rows.slice(1).map((row) => {
+          const values = row.split(',').map((v) => v.trim());
+          const obj: any = {};
+          headers.forEach((header, index) => {
+            obj[header] = values[index] || null;
+          });
+          return obj;
+        });
+
+        const { error } = await supabase.rpc('import_tournament_data', {
+          data: jsonData,
+        });
+        if (error) throw error;
+
+        alert(`${jsonData.length}件のデータをインポートしました。`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        router.refresh();
+      } catch (error: any) {
+        console.error('Import error:', error);
+        alert(`インポートに失敗しました: ${error.message}`);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    reader.readAsText(file);
   };
 
   // ----------------------------------------------------------------
@@ -107,18 +192,19 @@ export default function AdminPanel({
   });
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
       {/* タブナビゲーション */}
-      <div className="flex space-x-2 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
+      <div className="flex space-x-2 bg-white p-1 rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
         {[
           { id: 'dashboard', label: 'ダッシュボード', icon: Activity },
           { id: 'players', label: '参加者管理', icon: Users },
           { id: 'settings', label: '大会設定', icon: Settings },
+          { id: 'data', label: 'データ管理', icon: Database },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md text-sm font-bold transition-all ${
+            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-gray-800 text-white shadow-sm'
                 : 'text-gray-500 hover:bg-gray-100'
@@ -131,16 +217,45 @@ export default function AdminPanel({
       </div>
 
       {/* =================================================================
-          ダッシュボード
+          ダッシュボード (進行管理 & お知らせ)
          ================================================================= */}
       {activeTab === 'dashboard' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 進行フェーズ管理 */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <Activity className="mr-2 text-blue-600" /> 進行状況の管理
-            </h2>
-            <div className="space-y-3">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4 border-b pb-2">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <Activity className="mr-2 text-blue-600" /> 進行状況の管理
+              </h2>
+              {/* ★追加: 表示切替スイッチ */}
+              <label className="flex items-center cursor-pointer text-sm">
+                <span className="mr-2 text-gray-500 font-bold">
+                  {settings.show_phase ? '表示中' : '非表示'}
+                </span>
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={settings.show_phase ?? true}
+                    onChange={(e) =>
+                      handleSettingChange('show_phase', e.target.checked)
+                    }
+                  />
+                  <div
+                    className={`block w-10 h-6 rounded-full transition-colors ${
+                      settings.show_phase ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  ></div>
+                  <div
+                    className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${
+                      settings.show_phase ? 'transform translate-x-4' : ''
+                    }`}
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <div className="space-y-3 mb-4 flex-grow">
               {[
                 { val: 'preparing', label: '準備中。。。' },
                 { val: 'qualifier', label: '予選進行中' },
@@ -177,28 +292,61 @@ export default function AdminPanel({
                 </label>
               ))}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <button
-                onClick={saveSettings}
-                disabled={isSaving}
-                className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-              >
-                {isSaving ? (
-                  <RefreshCw className="animate-spin mr-2" />
-                ) : (
-                  <Save className="mr-2" />
-                )}
-                進行状況を更新
-              </button>
-            </div>
+
+            <button
+              onClick={saveSettings}
+              disabled={isSaving}
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm active:scale-95"
+            >
+              {isSaving ? (
+                <RefreshCw className="animate-spin mr-2" />
+              ) : (
+                <Save className="mr-2" />
+              )}
+              設定を更新
+            </button>
           </div>
 
           {/* お知らせ配信 */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-              <Megaphone className="mr-2 text-orange-500" /> 運営からのお知らせ
-            </h2>
-            <div className="mb-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4 border-b pb-2">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <Megaphone className="mr-2 text-orange-500" />{' '}
+                運営からのお知らせ
+              </h2>
+              {/* ★追加: 表示切替スイッチ */}
+              <label className="flex items-center cursor-pointer text-sm">
+                <span className="mr-2 text-gray-500 font-bold">
+                  {settings.show_announcement ? '表示中' : '非表示'}
+                </span>
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={settings.show_announcement ?? true}
+                    onChange={(e) =>
+                      handleSettingChange('show_announcement', e.target.checked)
+                    }
+                  />
+                  <div
+                    className={`block w-10 h-6 rounded-full transition-colors ${
+                      settings.show_announcement
+                        ? 'bg-orange-500'
+                        : 'bg-gray-300'
+                    }`}
+                  ></div>
+                  <div
+                    className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${
+                      settings.show_announcement
+                        ? 'transform translate-x-4'
+                        : ''
+                    }`}
+                  ></div>
+                </div>
+              </label>
+            </div>
+
+            <div className="mb-4 flex-grow">
               <p className="text-sm text-gray-500 mb-2">
                 閲覧ページの上部に表示されるメッセージです。
               </p>
@@ -207,14 +355,14 @@ export default function AdminPanel({
                 onChange={(e) =>
                   handleSettingChange('announcement', e.target.value)
                 }
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-h-[120px]"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-h-30 resize-none h-40"
                 placeholder="例: 只今昼食休憩中です。再開は13:00を予定しています。"
               />
             </div>
             <button
               onClick={saveSettings}
               disabled={isSaving}
-              className="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center"
+              className="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center shadow-sm active:scale-95"
             >
               {isSaving ? (
                 <RefreshCw className="animate-spin mr-2" />
@@ -232,10 +380,9 @@ export default function AdminPanel({
          ================================================================= */}
       {activeTab === 'players' && (
         <div className="space-y-4">
-          {/* 注意文 */}
           <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg shadow-sm flex items-start">
             <AlertTriangle
-              className="text-yellow-600 mr-3 flex-shrink-0 mt-0.5"
+              className="text-yellow-600 mr-3 shrink-0 mt-0.5"
               size={20}
             />
             <div className="text-sm text-yellow-800">
@@ -377,8 +524,6 @@ export default function AdminPanel({
                 <span className="ml-2 text-gray-700">位まで</span>
               </div>
             </div>
-
-            {/* 団体入賞枠設定は削除しました */}
           </div>
 
           <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">

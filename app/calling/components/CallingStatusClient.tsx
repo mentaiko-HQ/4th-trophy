@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Users } from 'lucide-react';
@@ -23,7 +23,7 @@ type Props = {
   currentTab: string;
 };
 
-// ステータス定義
+// ステータス定義（値、ラベル、表示色）
 const STATUS_OPTIONS = [
   {
     value: 'waiting',
@@ -50,12 +50,38 @@ const STATUS_OPTIONS = [
 export default function CallingStatusClient({ players, currentTab }: Props) {
   const router = useRouter();
 
-  // 更新中のグループインデックスを保持するState
+  // 更新処理中のグループインデックスを保持するState（ローディング表示用）
   const [updatingGroupIndex, setUpdatingGroupIndex] = useState<number | null>(
     null
   );
 
-  // 現在のタブに応じたターゲットカラム設定
+  // ★追加: Supabase Realtime による自動更新 (DB変更検知)
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('calling-status-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE 全て
+          schema: 'public',
+          table: 'entries', // entriesテーブルを監視
+        },
+        () => {
+          // 変更があったら画面をリフレッシュ（最新データを取得）
+          // これによりポーリングなしで即座に他の端末の変更が反映されます
+          router.refresh();
+        }
+      )
+      .subscribe();
+
+    // クリーンアップ関数: コンポーネントのアンマウント時に購読を解除
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
+
+  // 現在のタブに応じた「ステータスカラム名」と「立順カラム名」を決定
   let targetStatusColumn = 'status_am1';
   let targetOrderKey: keyof PlayerData = 'order_am1';
 
@@ -69,6 +95,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
   }
 
   // 1. フィルタリングとソート
+  // そのタブでの立順（order_xxx）が設定されている選手のみを抽出し、立順の昇順に並べ替える
   const sortedPlayers = useMemo(() => {
     const filtered = players.filter((p) => (p as any)[targetOrderKey] !== null);
     return filtered.sort((a, b) => {
@@ -78,7 +105,8 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     });
   }, [players, targetOrderKey]);
 
-  // 2. グループ化 (5人ずつ)
+  // 2. グループ化
+  // 5人ずつ（1立分）に分割する
   const chunkArray = <T,>(array: T[], size: number): T[][] => {
     const chunks: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
@@ -100,18 +128,22 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
 
     try {
       const ids = groupPlayers.map((p) => p.id);
+      // 対象グループ全員のステータスを一括更新
       const { error } = await supabase
         .from('entries')
         .update({ [targetStatusColumn]: newStatus })
         .in('id', ids);
 
       if (error) throw error;
+
+      // 更新成功時は自動的にRealtime検知が走ってrefreshされますが、
+      // 念のため手動でもrefreshを呼んでおくと確実です
       router.refresh();
     } catch (error) {
       console.error('Update error:', error);
       alert('ステータスの更新に失敗しました');
     } finally {
-      setUpdatingGroupIndex(null);
+      setUpdatingGroupIndex(null); // ローディング終了
     }
   };
 
@@ -119,6 +151,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
     router.push(`/calling?tab=${tab}`);
   };
 
+  // タブのデザインクラス生成
   const getTabClass = (tabName: string) => {
     const baseClass =
       'flex-1 py-4 text-center font-bold text-sm sm:text-base transition-all duration-200 border-b-4 outline-none';
@@ -145,26 +178,26 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
           onClick={() => handleTabChange('am2')}
           className={getTabClass('am2')}
         >
-          午前2
+          午後1
         </button>
         <button
           onClick={() => handleTabChange('pm1')}
           className={getTabClass('pm1')}
         >
-          午後1
+          午後2
         </button>
       </div>
 
       <div className="space-y-4">
-        {/* 全グループを一覧表示 */}
+        {/* 全グループを一覧表示 (ページネーションなし) */}
         {playerGroups.length > 0 ? (
           playerGroups.map((group, groupIndex) => {
             // 現在のグループの代表ステータスを取得（先頭の人を基準）
             const currentGroupStatus =
               (group[0] as any)[targetStatusColumn] || 'waiting';
 
-            const pairIndex = groupIndex + 1; // 組番号
-            const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場';
+            const pairIndex = groupIndex + 1; // グループインデックス + 1 = 組番号
+            const shajo = groupIndex % 2 === 0 ? '第一射場' : '第二射場'; // 偶数インデックス(奇数組)は第一、奇数インデックス(偶数組)は第二
 
             return (
               <div
@@ -190,7 +223,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
                         key={p.id}
                         className="flex items-center text-sm p-2 rounded hover:bg-gray-50 transition-colors"
                       >
-                        {/* 射位番号 */}
+                        {/* 射位番号 (1-5) */}
                         <span className="w-8 text-center font-bold text-white bg-[#34675C] rounded-full h-6 flex items-center justify-center mr-3 text-xs shadow-sm">
                           {idx + 1}
                         </span>
@@ -220,6 +253,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
                     </span>
                   </div>
 
+                  {/* 現在の状態ラベル */}
                   <div
                     className={`text-center py-2 rounded-lg font-bold text-lg mb-2 shadow-sm border transition-all ${
                       STATUS_OPTIONS.find((o) => o.value === currentGroupStatus)
@@ -232,6 +266,7 @@ export default function CallingStatusClient({ players, currentTab }: Props) {
                     }
                   </div>
 
+                  {/* ステータス変更ボタン群 */}
                   <div className="grid grid-cols-2 gap-2">
                     {STATUS_OPTIONS.map((option) => (
                       <button

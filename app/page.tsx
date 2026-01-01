@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Trophy, Edit3, Mic, Settings } from 'lucide-react';
+import { Trophy, Edit3, Mic, Settings, Monitor } from 'lucide-react';
 
 export default function Home() {
   const menuItems = [
@@ -32,6 +32,16 @@ export default function Home() {
       // green-700相当 -> oklch(0.527 0.154 150.92)
       color: 'bg-[oklch(0.627_0.194_149.21)]',
       hoverColor: 'group-hover:text-[oklch(0.527_0.154_150.92)]',
+    },
+    {
+      title: '会場スクリーン',
+      description: '行射・呼出状況を大画面で表示します',
+      href: '/signage',
+      icon: Monitor,
+      // purple-600相当 -> oklch(0.558 0.288 302.321)
+      // purple-700相当 -> oklch(0.496 0.265 301.924)
+      color: 'bg-[oklch(0.558_0.288_302.321)]',
+      hoverColor: 'group-hover:text-[oklch(0.496_0.265_301.924)]',
     },
     {
       title: '管理画面',
@@ -88,7 +98,7 @@ export default function Home() {
 
       {/* フッター */}
       <footer className="p-6 text-center text-xs text-gray-400">
-        <p>&copy; mentaikotrophy-HQ</p>
+        <p>&copy; Kyudo Competition Management System</p>
       </footer>
     </div>
   );

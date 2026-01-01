@@ -22,6 +22,8 @@ import {
   ArrowUpDown,
   BarChart2,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 
 // 大会設定の型定義
 export interface TournamentSettings {
@@ -29,6 +31,9 @@ export interface TournamentSettings {
   announcement: string | null;
   individual_prize_count: number;
   team_prize_count: number;
+  // ★追加: 表示制御フラグ
+  show_phase?: boolean;
+  show_announcement?: boolean;
 }
 
 // データの型定義
@@ -37,28 +42,22 @@ export interface PlayerData {
   bib_number: string | number;
   player_name: string;
   team_name: string;
-  // 立順情報の追加
   order_am1?: number | null;
   order_am2?: number | null;
   order_pm1?: number | null;
-  // ステータス情報
   status_am1?: string | null;
   status_am2?: string | null;
   status_pm1?: string | null;
-  // スコア
   score_am1: number | null;
   score_am2: number | null;
   score_pm1: number | null;
   total_score: number;
-  // 順位情報
   provisional_ranking: number | null;
   final_ranking?: number | null;
   prev_ranking?: number | null;
-  // 決勝情報
   playoff_type?: 'izume' | 'enkin' | null;
   semifinal_score?: number | null;
   semifinal_results?: number | null;
-  // 参考成績用
   dan_rank?: string | null;
   carriage?: string | null;
 }
@@ -69,7 +68,6 @@ interface ScoreListProps {
   playoffPlayers?: PlayerData[];
 }
 
-// ソートキーの型定義
 type SortKey =
   | 'bib_number'
   | 'player_name'
@@ -82,43 +80,59 @@ export default function ScoreList({
   settings,
   playoffPlayers = [],
 }: ScoreListProps) {
+  const router = useRouter();
+  const supabase = createClient();
+
   const [activeTab, setActiveTab] = useState<
     'order_list' | 'total' | 'am1' | 'am2' | 'pm1' | 'reference'
   >('order_list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showHelp, setShowHelp] = useState(false);
-
-  // ソート状態の管理
   const [sortKey, setSortKey] = useState<SortKey>('bib_number');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-  // アニメーション表示状態の管理
   const [showOpening, setShowOpening] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  // タブスクロール管理用のRefとState
   const tabsListRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // スクロール可能かどうかの判定処理
+  useEffect(() => {
+    const channel = supabase
+      .channel('score-list-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'entries' },
+        () => {
+          router.refresh();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tournament_settings' },
+        () => {
+          router.refresh();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, router]);
+
   const checkScroll = () => {
     if (tabsListRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = tabsListRef.current;
-      // 左にスクロールできるか（現在位置が0より大きいか）
       setCanScrollLeft(scrollLeft > 0);
-      // 右にスクロールできるか（現在位置 + 表示幅 が 全体の幅より小さいか）
-      // 誤差対策で -1 しています
       setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
     }
   };
 
-  // スクロール操作関数
   const scrollTabs = (direction: 'left' | 'right') => {
     if (tabsListRef.current) {
-      const scrollAmount = 150; // 1回あたりのスクロール量
+      const scrollAmount = 150;
       tabsListRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth',
@@ -126,38 +140,38 @@ export default function ScoreList({
     }
   };
 
-  // 初回訪問判定とアニメーション制御 & スクロール監視の初期化
+  // アニメーション制御の修正
   useEffect(() => {
     setIsClient(true);
     const hasSeen = sessionStorage.getItem('hasSeenRankingOpening');
 
     if (!hasSeen) {
+      // まだ見ていない場合
       setShowOpening(true);
-      sessionStorage.setItem('hasSeenRankingOpening', 'true');
 
       const timer = setTimeout(() => {
         setShowOpening(false);
-      }, 1500);
+        // ★修正: アニメーションが終わってから「見た」ことにする（Strict Mode対策）
+        sessionStorage.setItem('hasSeenRankingOpening', 'true');
+      }, 2000);
 
+      // アニメーション表示中は裏側も描画しておきたいので初期化完了とする
       setIsInitialized(true);
-      // アニメーション完了後にスクロール判定を行う
       setTimeout(checkScroll, 1600);
       return () => clearTimeout(timer);
     } else {
+      // 既に見ている場合
       setShowOpening(false);
       setIsInitialized(true);
-      // 即座にスクロール判定
       setTimeout(checkScroll, 0);
     }
   }, []);
 
-  // ウィンドウリサイズ時にもスクロール判定を更新
   useEffect(() => {
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
   }, []);
 
-  // 安全な配列データを確保
   const safePlayers = useMemo(
     () => (Array.isArray(players) ? players : []),
     [players]
@@ -242,7 +256,6 @@ export default function ScoreList({
     ) : (
       <span className="text-gray-400">-</span>
     );
-
     if (status === 'shooting') {
       return (
         <div className="flex flex-col items-center">
@@ -269,10 +282,8 @@ export default function ScoreList({
   const displayOrder = (order: number | null | undefined) =>
     order ? `${order}番` : '-';
 
-  // フィルタリングとソート処理
   const filteredPlayers = useMemo(() => {
     if (!Array.isArray(safePlayers)) return [];
-
     let result = safePlayers;
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
@@ -284,9 +295,7 @@ export default function ScoreList({
         );
       });
     }
-
     const sortedResult = [...result];
-
     switch (activeTab) {
       case 'order_list':
         sortedResult.sort((a, b) => {
@@ -361,11 +370,9 @@ export default function ScoreList({
   const createPlayerGroups = <T,>(array: T[]): T[][] => {
     const totalPlayers = array.length;
     if (totalPlayers === 0) return [];
-
     const maxPerGroup = 5;
     const totalGroups = Math.ceil(totalPlayers / maxPerGroup);
     const numGroupsOf4 = totalGroups * maxPerGroup - totalPlayers;
-
     if (numGroupsOf4 > totalGroups) {
       const baseSize = Math.floor(totalPlayers / totalGroups);
       const remainder = totalPlayers % totalGroups;
@@ -378,11 +385,9 @@ export default function ScoreList({
       }
       return groups;
     }
-
     const numGroupsOf5 = totalGroups - numGroupsOf4;
     const groups: T[][] = [];
     let startIndex = 0;
-
     for (let i = 0; i < numGroupsOf5; i++) {
       groups.push(array.slice(startIndex, startIndex + 5));
       startIndex += 5;
@@ -399,7 +404,6 @@ export default function ScoreList({
     ? createPlayerGroups(filteredPlayers)
     : [filteredPlayers];
 
-  // 集計ロジック (参考成績タブ用)
   const calculateReferenceStats = (
     key: 'team_name' | 'dan_rank' | 'carriage'
   ) => {
@@ -407,19 +411,16 @@ export default function ScoreList({
       string,
       { count: number; am1: number; am2: number; pm1: number }
     > = {};
-
     safePlayers.forEach((player) => {
       const groupKey = player[key] ?? '未設定';
       if (!groups[groupKey]) {
         groups[groupKey] = { count: 0, am1: 0, am2: 0, pm1: 0 };
       }
-
       groups[groupKey].count += 1;
       groups[groupKey].am1 += player.score_am1 || 0;
       groups[groupKey].am2 += player.score_am2 || 0;
       groups[groupKey].pm1 += player.score_pm1 || 0;
     });
-
     return Object.entries(groups)
       .map(([name, stats]) => ({
         name,
@@ -434,17 +435,10 @@ export default function ScoreList({
       .sort((a, b) => parseFloat(b.avg_total) - parseFloat(a.avg_total));
   };
 
-  // =========================================================
-  // レンダリング制御
-  // =========================================================
-
-  if (!isInitialized) {
-    return <div className="min-h-screen bg-white"></div>;
-  }
+  if (!isInitialized) return <div className="min-h-screen bg-white"></div>;
 
   return (
     <>
-      {/* アニメーション用オーバーレイ */}
       {isClient && showOpening && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
           <style jsx global>{`
@@ -464,13 +458,13 @@ export default function ScoreList({
                 transform: scale(1.4, 0.6) translate(0%, 30%);
               }
               30% {
-                transform: scale(0.9, 1.1) translate(0%, -15%);
+                transform: scale(0.9, 1.1) translate(0%, -10%);
               }
               40% {
-                transform: scale(0.95, 1.2) translate(0%, -40%);
+                transform: scale(0.95, 1.2) translate(0%, -30%);
               }
               50% {
-                transform: scale(0.95, 1.2) translate(0%, -15%);
+                transform: scale(0.95, 1.2) translate(0%, -10%);
               }
               60% {
                 transform: scale(1.1, 0.9) translate(0%, 5%);
@@ -487,24 +481,18 @@ export default function ScoreList({
             <img
               src="/images/matomentaiko.png"
               alt="Opening Animation"
-              // width/height属性はアスペクト比維持の基準として残すが、表示サイズはCSSで上書きされる
               width={200}
               height={200}
-              // 【変更点】
-              // w-[40vw]: 画面幅の40%
-              // max-w-[200px]: 最大200px
-              // h-auto: 高さ自動調整
               className="object-contain w-[40vw] max-w-[200px] h-auto"
             />
           </div>
         </div>
       )}
 
-      {/* メインコンテンツ */}
       <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800 relative">
-        {/* ステータス・お知らせ・競射情報エリア */}
         <div className="mb-4 space-y-2 px-1">
-          {settings?.current_phase && (
+          {/* ★追加: show_phase が true の場合のみ表示 */}
+          {settings?.show_phase !== false && settings?.current_phase && (
             <div
               className={`${phaseInfo.containerClass} border-l-4 p-3 rounded-r-lg shadow-sm flex items-center justify-between`}
             >
@@ -517,7 +505,8 @@ export default function ScoreList({
             </div>
           )}
 
-          {settings?.announcement && (
+          {/* ★追加: show_announcement が true の場合のみ表示 */}
+          {settings?.show_announcement !== false && settings?.announcement && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm flex items-start">
               <Megaphone
                 size={16}
@@ -558,7 +547,6 @@ export default function ScoreList({
           )}
         </div>
 
-        {/* ヘルプボタンエリア */}
         <div className="flex justify-end mb-3 pt-2 px-1">
           <button
             onClick={() => setShowHelp(true)}
@@ -569,9 +557,7 @@ export default function ScoreList({
           </button>
         </div>
 
-        {/* タブナビゲーションエリア */}
         <div className="relative mb-4 group">
-          {/* 左矢印 */}
           {canScrollLeft && (
             <button
               onClick={() => scrollTabs('left')}
@@ -585,7 +571,6 @@ export default function ScoreList({
             </button>
           )}
 
-          {/* タブリスト */}
           <div
             ref={tabsListRef}
             onScroll={checkScroll}
@@ -611,7 +596,7 @@ export default function ScoreList({
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              午前1立目
+              午前1
             </button>
             <button
               data-tab="am2"
@@ -622,7 +607,7 @@ export default function ScoreList({
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              午前2立目
+              午前2
             </button>
             <button
               data-tab="pm1"
@@ -633,7 +618,7 @@ export default function ScoreList({
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              午後1立目
+              午後1
             </button>
             <button
               data-tab="total"
@@ -659,7 +644,6 @@ export default function ScoreList({
             </button>
           </div>
 
-          {/* 右矢印 */}
           {canScrollRight && (
             <button
               onClick={() => scrollTabs('right')}
@@ -675,18 +659,16 @@ export default function ScoreList({
         </div>
 
         <div className="space-y-4">
-          {/* 参考成績タブの表示 */}
           {activeTab === 'reference' ? (
             <div className="space-y-8">
               {['team_name', 'dan_rank', 'carriage'].map((key) => {
                 const title =
                   key === 'team_name'
-                    ? 'チーム別的中数'
+                    ? 'チーム別成績'
                     : key === 'dan_rank'
-                    ? '段位別的中数'
-                    : '所作別的中数';
+                    ? '段位別成績'
+                    : '所作別成績';
                 const stats = calculateReferenceStats(key as any);
-
                 return (
                   <div
                     key={key}
@@ -702,11 +684,11 @@ export default function ScoreList({
                           <tr>
                             <th className="px-4 py-2 text-left">名称</th>
                             <th className="px-2 py-2">人数</th>
-                            <th className="px-2 py-2">午前1立目</th>
-                            <th className="px-2 py-2">午前2立目</th>
-                            <th className="px-2 py-2">午後1立目</th>
+                            <th className="px-2 py-2">午前1</th>
+                            <th className="px-2 py-2">午前2</th>
+                            <th className="px-2 py-2">午後1</th>
                             <th className="px-2 py-2 bg-[#F8FAFC] font-bold text-[#34675C]">
-                              平均的中数
+                              平均合計
                             </th>
                           </tr>
                         </thead>
@@ -741,7 +723,6 @@ export default function ScoreList({
             </div>
           ) : (
             <>
-              {/* ヘッダー操作部 (参考成績以外) */}
               <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm mb-2">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs font-bold text-gray-500 ml-2">
@@ -753,19 +734,16 @@ export default function ScoreList({
                   </span>
                   <button
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className={`flex items-center text-xs font-bold border rounded px-3 py-1.5 shadow-sm transition-colors
-                              ${
-                                isFilterOpen
-                                  ? 'bg-[#34675C] text-white border-[#34675C]'
-                                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                              }`}
+                    className={`flex items-center text-xs font-bold border rounded px-3 py-1.5 shadow-sm transition-colors ${
+                      isFilterOpen
+                        ? 'bg-[#34675C] text-white border-[#34675C]'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
                     <Filter size={12} className="mr-1" />
                     {isFilterOpen ? '閉じる' : '絞り込み'}
                   </button>
                 </div>
-
-                {/* 立順表タブ専用ソートUI */}
                 {activeTab === 'order_list' && (
                   <div className="flex justify-end items-center gap-2 mb-2 px-1 border-t border-gray-100 pt-2">
                     <span className="text-xs font-bold text-gray-500 flex items-center">
@@ -800,7 +778,6 @@ export default function ScoreList({
                     </button>
                   </div>
                 )}
-
                 {isFilterOpen && (
                   <div className="mt-2 pt-2 border-t border-gray-100 animate-in slide-in-from-top-1 fade-in duration-200">
                     <div className="relative">
@@ -828,12 +805,10 @@ export default function ScoreList({
                 )}
               </div>
 
-              {/* 選手リスト表示 (グループごとに表示) */}
               {playerGroups.map((group, groupIndex) => (
                 <div key={groupIndex} className={isGroupedView ? 'mb-6' : ''}>
                   <div className="space-y-4">
                     {group.map((player) => {
-                      // 立順表タブ
                       if (activeTab === 'order_list') {
                         return (
                           <div
@@ -885,12 +860,9 @@ export default function ScoreList({
                           </div>
                         );
                       }
-
-                      // 予選タブ
                       if (activeTab !== 'total') {
                         const data = getCurrentTabData(player);
                         const maxScore = activeTab === 'pm1' ? 4 : 2;
-
                         return (
                           <div
                             key={player.id}
@@ -932,14 +904,11 @@ export default function ScoreList({
                           </div>
                         );
                       }
-
-                      // 総合成績タブ
                       return (
                         <div
                           key={player.id}
                           className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
                         >
-                          {/* 1行目 */}
                           <div className="p-4 flex items-center justify-between">
                             <div className="flex items-center space-x-3 flex-1 min-w-0">
                               <div className="flex-1 min-w-0">
@@ -957,8 +926,6 @@ export default function ScoreList({
                               </div>
                             </div>
                           </div>
-
-                          {/* 2行目 */}
                           <div className="flex border-t border-[#E8ECEF] bg-white divide-x divide-[#E8ECEF]">
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
                               <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
@@ -985,8 +952,6 @@ export default function ScoreList({
                               </span>
                             </div>
                           </div>
-
-                          {/* 3行目 */}
                           <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
                             <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
                               <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
@@ -1000,7 +965,6 @@ export default function ScoreList({
                                 </span>
                               </div>
                             </div>
-
                             <div className="flex-1 py-3 flex flex-col items-center justify-center">
                               <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
                                 <Trophy size={14} className="mr-1" />
@@ -1022,8 +986,6 @@ export default function ScoreList({
                               </div>
                             </div>
                           </div>
-
-                          {/* 決勝詳細 */}
                           {(player.playoff_type ||
                             player.semifinal_score != null ||
                             player.semifinal_results != null) && (
@@ -1048,7 +1010,6 @@ export default function ScoreList({
                                     : '-'}
                                 </span>
                               </div>
-
                               <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-[4rem]">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
                                   <Crosshair size={10} className="mr-1" />{' '}
@@ -1060,7 +1021,6 @@ export default function ScoreList({
                                     : '-'}
                                 </span>
                               </div>
-
                               <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-[4rem]">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
                                   <HelpCircle size={10} className="mr-1" />{' '}
@@ -1074,8 +1034,6 @@ export default function ScoreList({
                               </div>
                             </div>
                           )}
-
-                          {/* 4行目 */}
                           <div className="flex border-t border-[#E8ECEF] bg-yellow-50/50">
                             <div className="flex-1 py-3 flex flex-col items-center justify-center">
                               <div className="flex items-center text-xs text-[#b45309] mb-1 font-bold">
@@ -1093,7 +1051,6 @@ export default function ScoreList({
                       );
                     })}
                   </div>
-                  {/* 区切り線 */}
                   {isGroupedView && groupIndex < playerGroups.length - 1 && (
                     <div className="flex items-center my-6">
                       <div className="flex-grow border-t-2 border-dashed border-gray-300"></div>
@@ -1117,7 +1074,6 @@ export default function ScoreList({
           )}
         </div>
 
-        {/* ヘルプモーダル */}
         {showHelp && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -1133,7 +1089,6 @@ export default function ScoreList({
                   <X size={24} />
                 </button>
               </div>
-
               <div className="p-6 overflow-y-auto text-sm space-y-6 text-gray-700 leading-relaxed">
                 <section>
                   <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
@@ -1183,7 +1138,6 @@ export default function ScoreList({
                     </li>
                   </ul>
                 </section>
-
                 <section>
                   <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
                     操作方法
@@ -1197,7 +1151,6 @@ export default function ScoreList({
                     </p>
                   </div>
                 </section>
-
                 <section>
                   <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
                     順位決定ルール
@@ -1217,7 +1170,6 @@ export default function ScoreList({
                   </ol>
                 </section>
               </div>
-
               <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
                 <button
                   onClick={() => setShowHelp(false)}

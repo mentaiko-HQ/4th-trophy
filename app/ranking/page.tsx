@@ -31,7 +31,7 @@ export default async function RankingPage() {
       )
     `
     )
-    .neq('is_absent', true)
+    .neq('is_absent', true) // 欠席者を除外
     // 優先順位1: 合計的中数 (降順)
     .order('total_score', { ascending: false })
     // 優先順位2: 射遠順位 (昇順: 1位, 2位... NULLは後ろ)
@@ -64,7 +64,6 @@ export default async function RankingPage() {
     (entry: any, index: number) => {
       const playerName = entry.participants?.name ?? '不明な選手';
       const teamName = entry.participants?.teams?.name ?? '所属なし';
-      // 段位・所作の取得
       const danRank = entry.participants?.dan_rank;
       const carriage = entry.participants?.carriage;
 
@@ -117,10 +116,12 @@ export default async function RankingPage() {
   if (prizeCount > 0) {
     const rankMap = new Map<number, PlayerData[]>();
     players.forEach((p) => {
-      if (p.provisional_ranking !== null) {
-        const group = rankMap.get(p.provisional_ranking) || [];
+      // 型安全のため、プロパティの存在チェックを行ってからアクセス
+      const rank = p.provisional_ranking;
+      if (rank !== null && rank !== undefined) {
+        const group = rankMap.get(rank) || [];
         group.push(p);
-        rankMap.set(p.provisional_ranking, group);
+        rankMap.set(rank, group);
       }
     });
 
@@ -140,6 +141,7 @@ export default async function RankingPage() {
       </header>
 
       <main className="p-4">
+        {/* settings プロパティを渡す（ScoreList側の型定義と一致させる必要があります） */}
         <ScoreList
           players={players}
           settings={settings}
