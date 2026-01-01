@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import Image from 'next/image';
 
 // 大会設定の型定義
 export interface TournamentSettings {
@@ -31,7 +32,6 @@ export interface TournamentSettings {
   announcement: string | null;
   individual_prize_count: number;
   team_prize_count: number;
-  // ★追加: 表示制御フラグ
   show_phase?: boolean;
   show_announcement?: boolean;
 }
@@ -140,27 +140,22 @@ export default function ScoreList({
     }
   };
 
-  // アニメーション制御の修正
   useEffect(() => {
     setIsClient(true);
     const hasSeen = sessionStorage.getItem('hasSeenRankingOpening');
 
     if (!hasSeen) {
-      // まだ見ていない場合
       setShowOpening(true);
 
       const timer = setTimeout(() => {
         setShowOpening(false);
-        // ★修正: アニメーションが終わってから「見た」ことにする（Strict Mode対策）
         sessionStorage.setItem('hasSeenRankingOpening', 'true');
-      }, 2000);
+      }, 1500);
 
-      // アニメーション表示中は裏側も描画しておきたいので初期化完了とする
       setIsInitialized(true);
       setTimeout(checkScroll, 1600);
       return () => clearTimeout(timer);
     } else {
-      // 既に見ている場合
       setShowOpening(false);
       setIsInitialized(true);
       setTimeout(checkScroll, 0);
@@ -370,9 +365,11 @@ export default function ScoreList({
   const createPlayerGroups = <T,>(array: T[]): T[][] => {
     const totalPlayers = array.length;
     if (totalPlayers === 0) return [];
+
     const maxPerGroup = 5;
     const totalGroups = Math.ceil(totalPlayers / maxPerGroup);
     const numGroupsOf4 = totalGroups * maxPerGroup - totalPlayers;
+
     if (numGroupsOf4 > totalGroups) {
       const baseSize = Math.floor(totalPlayers / totalGroups);
       const remainder = totalPlayers % totalGroups;
@@ -385,9 +382,11 @@ export default function ScoreList({
       }
       return groups;
     }
+
     const numGroupsOf5 = totalGroups - numGroupsOf4;
     const groups: T[][] = [];
     let startIndex = 0;
+
     for (let i = 0; i < numGroupsOf5; i++) {
       groups.push(array.slice(startIndex, startIndex + 5));
       startIndex += 5;
@@ -440,10 +439,10 @@ export default function ScoreList({
   return (
     <>
       {isClient && showOpening && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 1.8s linear 0s 1;
+              animation: poyon 1.1s linear 0s 1;
             }
             @keyframes poyon {
               0% {
@@ -478,12 +477,14 @@ export default function ScoreList({
             }
           `}</style>
           <div className="poyon flex flex-col items-center">
-            <img
-              src="/images/matomentaiko.png"
+            <Image
+              src="/images/mitarashi.png"
               alt="Opening Animation"
               width={200}
               height={200}
-              className="object-contain w-[40vw] max-w-[200px] h-auto"
+              className="object-contain w-[40vw] max-w-50 h-auto"
+              priority={true}
+              unoptimized={true}
             />
           </div>
         </div>
@@ -491,7 +492,6 @@ export default function ScoreList({
 
       <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800 relative">
         <div className="mb-4 space-y-2 px-1">
-          {/* ★追加: show_phase が true の場合のみ表示 */}
           {settings?.show_phase !== false && settings?.current_phase && (
             <div
               className={`${phaseInfo.containerClass} border-l-4 p-3 rounded-r-lg shadow-sm flex items-center justify-between`}
@@ -505,12 +505,11 @@ export default function ScoreList({
             </div>
           )}
 
-          {/* ★追加: show_announcement が true の場合のみ表示 */}
           {settings?.show_announcement !== false && settings?.announcement && (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm flex items-start">
               <Megaphone
                 size={16}
-                className="text-yellow-600 mt-0.5 mr-2 flex-shrink-0"
+                className="text-yellow-600 mt-0.5 mr-2 shrink-0"
               />
               <p className="text-sm text-yellow-800 whitespace-pre-wrap leading-relaxed">
                 {settings.announcement}
@@ -561,7 +560,7 @@ export default function ScoreList({
           {canScrollLeft && (
             <button
               onClick={() => scrollTabs('left')}
-              className="absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-gray-50 to-transparent flex items-center justify-start pl-1"
+              className="absolute left-0 top-0 bottom-0 z-10 w-8 bg-linear-to-r from-gray-50 to-transparent flex items-center justify-start pl-1"
               aria-label="左へスクロール"
             >
               <ChevronLeft
@@ -579,7 +578,7 @@ export default function ScoreList({
             <button
               data-tab="order_list"
               onClick={() => setActiveTab('order_list')}
-              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
                 activeTab === 'order_list'
                   ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -590,7 +589,7 @@ export default function ScoreList({
             <button
               data-tab="am1"
               onClick={() => setActiveTab('am1')}
-              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
                 activeTab === 'am1'
                   ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -601,7 +600,7 @@ export default function ScoreList({
             <button
               data-tab="am2"
               onClick={() => setActiveTab('am2')}
-              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
                 activeTab === 'am2'
                   ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -612,7 +611,7 @@ export default function ScoreList({
             <button
               data-tab="pm1"
               onClick={() => setActiveTab('pm1')}
-              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
                 activeTab === 'pm1'
                   ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -623,7 +622,7 @@ export default function ScoreList({
             <button
               data-tab="total"
               onClick={() => setActiveTab('total')}
-              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
                 activeTab === 'total'
                   ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -634,7 +633,7 @@ export default function ScoreList({
             <button
               data-tab="reference"
               onClick={() => setActiveTab('reference')}
-              className={`flex-1 min-w-[70px] py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
+              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
                 activeTab === 'reference'
                   ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
@@ -647,7 +646,7 @@ export default function ScoreList({
           {canScrollRight && (
             <button
               onClick={() => scrollTabs('right')}
-              className="absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-gray-50 to-transparent flex items-center justify-end pr-1"
+              className="absolute right-0 top-0 bottom-0 z-10 w-8 bg-linear-to-l from-gray-50 to-transparent flex items-center justify-end pr-1"
               aria-label="右へスクロール"
             >
               <ChevronRight
@@ -685,8 +684,8 @@ export default function ScoreList({
                             <th className="px-4 py-2 text-left">名称</th>
                             <th className="px-2 py-2">人数</th>
                             <th className="px-2 py-2">午前1</th>
-                            <th className="px-2 py-2">午前2</th>
                             <th className="px-2 py-2">午後1</th>
+                            <th className="px-2 py-2">午後2</th>
                             <th className="px-2 py-2 bg-[#F8FAFC] font-bold text-[#34675C]">
                               平均合計
                             </th>
@@ -758,8 +757,8 @@ export default function ScoreList({
                       <option value="bib_number">No. (ID)</option>
                       <option value="player_name">氏名</option>
                       <option value="order_am1">午前1立順</option>
-                      <option value="order_am2">午前2立順</option>
-                      <option value="order_pm1">午後立順</option>
+                      <option value="order_am2">午後1立順</option>
+                      <option value="order_pm1">午後2立順</option>
                     </select>
                     <button
                       onClick={() =>
@@ -840,7 +839,7 @@ export default function ScoreList({
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午前2立順
+                                  午後1立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am2,
@@ -849,7 +848,7 @@ export default function ScoreList({
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
                                 <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午後立順
+                                  午後2立順
                                 </span>
                                 {renderOrderInfo(
                                   player.order_pm1,
@@ -937,7 +936,7 @@ export default function ScoreList({
                             </div>
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
                               <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                午前2
+                                午後1
                               </span>
                               <span className="text-sm font-bold text-[#324857]">
                                 {renderScore(player.score_am2, 2)}
@@ -945,7 +944,7 @@ export default function ScoreList({
                             </div>
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
                               <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                午後1
+                                午後2
                               </span>
                               <span className="text-sm font-bold text-[#324857]">
                                 {renderScore(player.score_pm1, 4)}
@@ -990,7 +989,7 @@ export default function ScoreList({
                             player.semifinal_score != null ||
                             player.semifinal_results != null) && (
                             <div className="flex border-t border-[#E8ECEF] bg-blue-50/40 items-center justify-around py-2">
-                              <div className="flex flex-col items-center min-w-[3rem]">
+                              <div className="flex flex-col items-center min-w-12">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5">
                                   方式
                                 </span>
@@ -1010,7 +1009,7 @@ export default function ScoreList({
                                     : '-'}
                                 </span>
                               </div>
-                              <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-[4rem]">
+                              <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-16">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
                                   <Crosshair size={10} className="mr-1" />{' '}
                                   射詰的中
@@ -1021,7 +1020,7 @@ export default function ScoreList({
                                     : '-'}
                                 </span>
                               </div>
-                              <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-[4rem]">
+                              <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-16">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
                                   <HelpCircle size={10} className="mr-1" />{' '}
                                   射遠順位
@@ -1053,7 +1052,7 @@ export default function ScoreList({
                   </div>
                   {isGroupedView && groupIndex < playerGroups.length - 1 && (
                     <div className="flex items-center my-6">
-                      <div className="flex-grow border-t-2 border-dashed border-gray-300"></div>
+                      <div className="grow border-t-2 border-dashed border-gray-300"></div>
                     </div>
                   )}
                 </div>
@@ -1096,7 +1095,7 @@ export default function ScoreList({
                   </h4>
                   <ul className="space-y-2 ml-1">
                     <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 shrink-0"></span>
                       <span>
                         <span className="font-bold text-gray-900">
                           立順表タブ:
@@ -1105,7 +1104,7 @@ export default function ScoreList({
                       </span>
                     </li>
                     <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 shrink-0"></span>
                       <span>
                         <span className="font-bold text-gray-900">
                           午前・午後タブ:
@@ -1114,7 +1113,7 @@ export default function ScoreList({
                       </span>
                     </li>
                     <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 shrink-0"></span>
                       <span>
                         <span className="font-bold text-gray-900">
                           総合成績タブ:
@@ -1123,7 +1122,7 @@ export default function ScoreList({
                       </span>
                     </li>
                     <li className="flex items-start">
-                      <span className="inline-block mt-0.5 mr-2 flex-shrink-0">
+                      <span className="inline-block mt-0.5 mr-2 shrink-0">
                         <Star
                           size={14}
                           className="text-yellow-500 fill-yellow-500"
