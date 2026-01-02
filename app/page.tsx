@@ -98,7 +98,7 @@ export default function Home() {
 
       {/* フッター */}
       <footer className="p-6 text-center text-xs text-gray-400">
-        <p>&copy; Kyudo Competition Management System</p>
+        <p>&copy; 4th Mentaikotrophy Management System</p>
       </footer>
     </div>
   );
