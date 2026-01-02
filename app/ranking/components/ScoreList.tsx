@@ -150,7 +150,7 @@ export default function ScoreList({
       const timer = setTimeout(() => {
         setShowOpening(false);
         sessionStorage.setItem('hasSeenRankingOpening', 'true');
-      }, 1500);
+      }, 2000);
 
       setIsInitialized(true);
       setTimeout(checkScroll, 1600);
@@ -442,7 +442,7 @@ export default function ScoreList({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 1.1s linear 0s 1;
+              animation: poyon 1.8s linear 0s 1;
             }
             @keyframes poyon {
               0% {
@@ -606,7 +606,7 @@ export default function ScoreList({
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              午前2
+              午後1
             </button>
             <button
               data-tab="pm1"
@@ -617,7 +617,7 @@ export default function ScoreList({
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              午後1
+              午後2
             </button>
             <button
               data-tab="total"
