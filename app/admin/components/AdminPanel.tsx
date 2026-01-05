@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import {
@@ -18,14 +18,24 @@ import {
   Upload,
   Trash2,
   FileText,
-  Eye,
-  EyeOff,
+  Download,
+  RotateCcw,
+  Archive,
+  History,
+  PlayCircle,
 } from 'lucide-react';
 
 interface AdminPanelProps {
   initialPlayers: any[];
   initialSettings: any;
 }
+
+// スナップショット型定義
+type Snapshot = {
+  id: string;
+  created_at: string;
+  label: string;
+};
 
 export default function AdminPanel({
   initialPlayers,
@@ -41,10 +51,32 @@ export default function AdminPanel({
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // スナップショット一覧用
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ----------------------------------------------------------------
-  // データ更新ハンドラ
+  // スナップショットの取得
+  // ----------------------------------------------------------------
+  const fetchSnapshots = async () => {
+    const { data, error } = await supabase
+      .from('tournament_snapshots')
+      .select('id, created_at, label')
+      .order('created_at', { ascending: false });
+
+    if (data) setSnapshots(data);
+  };
+
+  // タブ切り替え時にスナップショットを再取得
+  useEffect(() => {
+    if (activeTab === 'data') {
+      fetchSnapshots();
+    }
+  }, [activeTab]);
+
+  // ----------------------------------------------------------------
+  // データ更新ハンドラ (通常)
   // ----------------------------------------------------------------
 
   // 欠席処理
@@ -68,7 +100,7 @@ export default function AdminPanel({
     }
   };
 
-  // 設定保存 (ダッシュボード & 大会設定共通)
+  // 設定保存
   const saveSettings = async () => {
     setIsSaving(true);
     const { error } = await supabase
@@ -77,7 +109,6 @@ export default function AdminPanel({
         announcement: settings.announcement,
         individual_prize_count: settings.individual_prize_count,
         current_phase: settings.current_phase,
-        // ★追加: 表示設定の保存
         show_phase: settings.show_phase,
         show_announcement: settings.show_announcement,
       })
@@ -89,27 +120,116 @@ export default function AdminPanel({
     router.refresh();
   };
 
-  // 設定値の変更ハンドラ
   const handleSettingChange = (field: string, value: any) => {
     setSettings((prev: any) => ({ ...prev, [field]: value }));
   };
 
   // ----------------------------------------------------------------
-  // データ管理ハンドラ (リセット & インポート)
+  // データ管理: インポート & エクスポート & リセット
   // ----------------------------------------------------------------
 
+  // CSVダウンロード処理 (共通)
+  const downloadCSV = (content: string, filename: string) => {
+    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), content], {
+      type: 'text/csv;charset=utf-8;',
+    }); // BOM付きUTF-8
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
+
+  // 全データエクスポート
+  const handleExportData = () => {
+    if (!players || players.length === 0) {
+      alert('データがありません');
+      return;
+    }
+
+    // ヘッダー
+    const header =
+      'No,氏名,所属,段位,所作,AM1立順,AM2立順,PM1立順,AM1的中,AM2的中,PM1的中,合計,暫定順位,最終順位,射詰,射遠順位,ステータス(AM1),欠席\n';
+
+    // データ行
+    const rows = players
+      .map((p: any) => {
+        const parts = p.participants || {};
+        const team = parts.teams || {};
+        return [
+          p.bib_number,
+          `"${parts.name || ''}"`,
+          `"${team.name || ''}"`,
+          parts.dan_rank || '',
+          parts.carriage || '',
+          p.order_am1 || '',
+          p.order_am2 || '',
+          p.order_pm1 || '',
+          p.score_am1 ?? '',
+          p.score_am2 ?? '',
+          p.score_pm1 ?? '',
+          p.total_score ?? 0,
+          p.provisional_ranking ?? '',
+          p.final_ranking ?? '',
+          p.semifinal_score ?? '',
+          p.semifinal_results ?? '',
+          p.status_am1 || '',
+          p.is_absent ? '欠席' : '',
+        ].join(',');
+      })
+      .join('\n');
+
+    downloadCSV(
+      header + rows,
+      `大会データ_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+  };
+
+  // 採点簿 (空枠付き) エクスポート
+  const handleExportScoreSheet = () => {
+    if (!players || players.length === 0) return;
+
+    // ヘッダー
+    const header = '立順,No,氏名,所属,1射目,2射目,3射目,4射目,小計,確認印\n';
+
+    // データ行 (AM1の立順でソートして出力する例)
+    const sorted = [...players]
+      .filter((p: any) => !p.is_absent && p.order_am1)
+      .sort((a: any, b: any) => (a.order_am1 || 0) - (b.order_am1 || 0));
+
+    const rows = sorted
+      .map((p: any) => {
+        const parts = p.participants || {};
+        const team = parts.teams || {};
+        return [
+          p.order_am1,
+          p.bib_number,
+          `"${parts.name || ''}"`,
+          `"${team.name || ''}"`,
+          '',
+          '',
+          '',
+          '',
+          '',
+          '', // 空欄
+        ].join(',');
+      })
+      .join('\n');
+
+    downloadCSV(
+      header + rows,
+      `採点簿_AM1_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+  };
+
+  // データリセット (全削除)
   const handleResetData = async () => {
     if (
       !window.confirm(
-        '【警告】\n全ての参加者データ、成績データ、チームデータを完全に削除します。\n本当に実行しますか？'
+        '【警告】全てのデータを完全に削除します。\n実行前にバックアップ(エクスポート)を推奨します。\n本当によろしいですか？'
       )
     )
       return;
-    if (
-      !window.confirm(
-        '【最終確認】\nこの操作は取り消せません。\n本当にデータをリセットしてよろしいですか？'
-      )
-    )
+    if (!window.confirm('【最終確認】この操作は取り消せません。実行しますか？'))
       return;
 
     setIsSaving(true);
@@ -126,6 +246,49 @@ export default function AdminPanel({
     }
   };
 
+  // スコアのみクリア
+  const handleResetScores = async () => {
+    if (
+      !window.confirm(
+        '全選手の「スコア」「順位」をクリアしますか？\n選手データや立順は保持されます。\n(リハーサル後の本番準備などに使用します)'
+      )
+    )
+      return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('reset_scores_only');
+      if (error) throw error;
+      alert('スコアをクリアしました。');
+      router.refresh();
+    } catch (error) {
+      alert('失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ステータスのみリセット
+  const handleResetStatuses = async () => {
+    if (
+      !window.confirm('全選手の進行状況(呼出/行射など)を「待機」に戻しますか？')
+    )
+      return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('reset_statuses_only');
+      if (error) throw error;
+      alert('ステータスをリセットしました。');
+      router.refresh();
+    } catch (error) {
+      alert('失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // CSVインポート (既存機能)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -145,9 +308,8 @@ export default function AdminPanel({
 
         const requiredColumns = ['bib_number', 'player_name', 'team_name'];
         const missing = requiredColumns.filter((col) => !headers.includes(col));
-        if (missing.length > 0) {
-          throw new Error(`必須カラムが見つかりません: ${missing.join(', ')}`);
-        }
+        if (missing.length > 0)
+          throw new Error(`必須カラム不足: ${missing.join(', ')}`);
 
         const jsonData = rows.slice(1).map((row) => {
           const values = row.split(',').map((v) => v.trim());
@@ -163,17 +325,65 @@ export default function AdminPanel({
         });
         if (error) throw error;
 
-        alert(`${jsonData.length}件のデータをインポートしました。`);
+        alert(`${jsonData.length}件インポートしました。`);
         if (fileInputRef.current) fileInputRef.current.value = '';
         router.refresh();
       } catch (error: any) {
-        console.error('Import error:', error);
-        alert(`インポートに失敗しました: ${error.message}`);
+        alert(`インポート失敗: ${error.message}`);
       } finally {
         setIsSaving(false);
       }
     };
     reader.readAsText(file);
+  };
+
+  // ----------------------------------------------------------------
+  // スナップショット管理
+  // ----------------------------------------------------------------
+
+  const handleCreateSnapshot = async () => {
+    const label = prompt(
+      'バックアップの名前を入力してください (例: 予選終了後)'
+    );
+    if (!label) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('create_snapshot', {
+        p_label: label,
+      });
+      if (error) throw error;
+      alert('バックアップを作成しました。');
+      fetchSnapshots();
+    } catch (error) {
+      alert('作成に失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (id: string, label: string) => {
+    if (
+      !window.confirm(
+        `【警告】現在のデータを破棄し、バックアップ「${label}」の状態に戻します。\n本当によろしいですか？`
+      )
+    )
+      return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('restore_snapshot', {
+        p_snapshot_id: id,
+      });
+      if (error) throw error;
+      alert('データを復元しました。');
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert('復元に失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ----------------------------------------------------------------
@@ -216,18 +426,14 @@ export default function AdminPanel({
         ))}
       </div>
 
-      {/* =================================================================
-          ダッシュボード (進行管理 & お知らせ)
-         ================================================================= */}
+      {/* ダッシュボード */}
       {activeTab === 'dashboard' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 進行フェーズ管理 */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4 border-b pb-2">
               <h2 className="text-lg font-bold text-gray-800 flex items-center">
                 <Activity className="mr-2 text-blue-600" /> 進行状況の管理
               </h2>
-              {/* ★追加: 表示切替スイッチ */}
               <label className="flex items-center cursor-pointer text-sm">
                 <span className="mr-2 text-gray-500 font-bold">
                   {settings.show_phase ? '表示中' : '非表示'}
@@ -254,8 +460,7 @@ export default function AdminPanel({
                 </div>
               </label>
             </div>
-
-            <div className="space-y-3 mb-4 flex-grow">
+            <div className="space-y-3 mb-4 grow">
               {[
                 { val: 'preparing', label: '準備中。。。' },
                 { val: 'qualifier', label: '予選進行中' },
@@ -292,7 +497,6 @@ export default function AdminPanel({
                 </label>
               ))}
             </div>
-
             <button
               onClick={saveSettings}
               disabled={isSaving}
@@ -307,14 +511,12 @@ export default function AdminPanel({
             </button>
           </div>
 
-          {/* お知らせ配信 */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4 border-b pb-2">
               <h2 className="text-lg font-bold text-gray-800 flex items-center">
                 <Megaphone className="mr-2 text-orange-500" />{' '}
                 運営からのお知らせ
               </h2>
-              {/* ★追加: 表示切替スイッチ */}
               <label className="flex items-center cursor-pointer text-sm">
                 <span className="mr-2 text-gray-500 font-bold">
                   {settings.show_announcement ? '表示中' : '非表示'}
@@ -345,8 +547,7 @@ export default function AdminPanel({
                 </div>
               </label>
             </div>
-
-            <div className="mb-4 flex-grow">
+            <div className="mb-4 grow">
               <p className="text-sm text-gray-500 mb-2">
                 閲覧ページの上部に表示されるメッセージです。
               </p>
@@ -375,9 +576,7 @@ export default function AdminPanel({
         </div>
       )}
 
-      {/* =================================================================
-          参加者管理 (欠席設定)
-         ================================================================= */}
+      {/* 参加者管理 */}
       {activeTab === 'players' && (
         <div className="space-y-4">
           <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg shadow-sm flex items-start">
@@ -395,7 +594,6 @@ export default function AdminPanel({
               </p>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
               <h2 className="text-lg font-bold text-gray-800 flex items-center">
@@ -416,7 +614,6 @@ export default function AdminPanel({
                 />
               </div>
             </div>
-
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left text-gray-600">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
@@ -467,22 +664,9 @@ export default function AdminPanel({
                             <UserX size={14} className="mr-1" /> 欠席にする
                           </button>
                         )}
-                        {player.is_absent && (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
                       </td>
                     </tr>
                   ))}
-                  {filteredPlayers.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-6 py-8 text-center text-gray-400"
-                      >
-                        該当する選手が見つかりません
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
@@ -490,24 +674,18 @@ export default function AdminPanel({
         </div>
       )}
 
-      {/* =================================================================
-          大会設定
-         ================================================================= */}
+      {/* 大会設定 */}
       {activeTab === 'settings' && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center border-b pb-2">
             <Settings className="mr-2" /> 大会基本設定
           </h2>
-
           <div className="grid grid-cols-1 gap-8">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
                 <Trophy size={16} className="mr-1 text-yellow-600" />{' '}
                 個人入賞枠数
               </label>
-              <p className="text-xs text-gray-500 mb-2">
-                上位何位までを入賞（表彰対象）とするか設定します。
-              </p>
               <div className="flex items-center">
                 <input
                   type="number"
@@ -525,7 +703,6 @@ export default function AdminPanel({
               </div>
             </div>
           </div>
-
           <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
             <button
               onClick={saveSettings}
@@ -539,6 +716,141 @@ export default function AdminPanel({
               )}
               設定を保存する
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* データ管理 (新規追加) */}
+      {activeTab === 'data' && (
+        <div className="space-y-8">
+          {/* 1. バックアップと復元 (スナップショット) */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <Archive className="mr-2 text-purple-600" /> バックアップと復元
+              </h2>
+              <button
+                onClick={handleCreateSnapshot}
+                disabled={isSaving}
+                className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700 flex items-center"
+              >
+                <Save size={16} className="mr-1" /> 現在の状態を保存
+              </button>
+            </div>
+            <div className="space-y-2">
+              {snapshots.length === 0 && (
+                <p className="text-gray-400 text-sm">
+                  バックアップデータはありません。
+                </p>
+              )}
+              {snapshots.map((snap) => (
+                <div
+                  key={snap.id}
+                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200"
+                >
+                  <div>
+                    <p className="font-bold text-gray-800">{snap.label}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(snap.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleRestoreSnapshot(snap.id, snap.label)}
+                    disabled={isSaving}
+                    className="text-xs border border-purple-500 text-purple-600 px-3 py-1.5 rounded hover:bg-purple-50 flex items-center"
+                  >
+                    <History size={14} className="mr-1" /> この状態に戻す
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. インポートとエクスポート */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* CSVインポート */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Upload className="mr-2 text-blue-600" /> データ登録 (CSV)
+              </h2>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {isSaving ? (
+                      <RefreshCw className="w-8 h-8 mb-3 text-gray-400 animate-spin" />
+                    ) : (
+                      <Upload className="w-8 h-8 mb-3 text-gray-400" />
+                    )}
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">
+                        クリックしてCSVを選択
+                      </span>
+                    </p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    disabled={isSaving}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* エクスポート */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <Download className="mr-2 text-green-600" /> データ出力 (CSV)
+              </h2>
+              <div className="space-y-3">
+                <button
+                  onClick={handleExportData}
+                  className="w-full flex items-center justify-center py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-bold text-gray-700"
+                >
+                  <FileText size={16} className="mr-2 text-gray-500" />{' '}
+                  全データ(バックアップ用)
+                </button>
+                <button
+                  onClick={handleExportScoreSheet}
+                  className="w-full flex items-center justify-center py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-bold text-gray-700"
+                >
+                  <FileText size={16} className="mr-2 text-gray-500" />{' '}
+                  採点簿(AM1・空枠付き)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. リセット操作 */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-red-200">
+            <h2 className="text-lg font-bold text-red-600 mb-4 flex items-center">
+              <AlertTriangle className="mr-2" /> リセット操作
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                onClick={handleResetScores}
+                disabled={isSaving}
+                className="py-3 px-4 rounded-lg bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 flex items-center justify-center border border-red-200"
+              >
+                <RotateCcw size={16} className="mr-2" /> スコアのみクリア
+              </button>
+              <button
+                onClick={handleResetStatuses}
+                disabled={isSaving}
+                className="py-3 px-4 rounded-lg bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 flex items-center justify-center border border-red-200"
+              >
+                <RotateCcw size={16} className="mr-2" /> 進行状況リセット
+              </button>
+              <button
+                onClick={handleResetData}
+                disabled={isSaving}
+                className="py-3 px-4 rounded-lg bg-red-600 text-white font-bold text-sm hover:bg-red-700 flex items-center justify-center shadow-md"
+              >
+                <Trash2 size={16} className="mr-2" /> 全データ完全削除
+              </button>
+            </div>
           </div>
         </div>
       )}
