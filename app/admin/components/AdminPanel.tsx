@@ -682,7 +682,7 @@ export default function AdminPanel({
           </h2>
           <div className="grid grid-cols-1 gap-8">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
+              <label className="text-sm font-bold text-gray-700 mb-2 flex items-center">
                 <Trophy size={16} className="mr-1 text-yellow-600" />{' '}
                 個人入賞枠数
               </label>
