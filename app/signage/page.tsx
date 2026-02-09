@@ -1,7 +1,7 @@
 import SignageBoard from './components/SignageBoard';
 import type { Metadata } from 'next';
 
-// ★追加: ビルド時の静的生成を回避し、アクセス時に都度レンダリングする設定
+// ビルド時の静的生成を回避し、アクセス時に都度レンダリングする設定
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function SignagePage() {
   return (
-    <main>
+    <main className="min-h-screen bg-bk-beige">
       <SignageBoard />
     </main>
   );

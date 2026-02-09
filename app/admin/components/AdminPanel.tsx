@@ -23,6 +23,7 @@ import {
   Archive,
   History,
   PlayCircle,
+  Check,
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -180,7 +181,7 @@ export default function AdminPanel({
 
     downloadCSV(
       header + rows,
-      `大会データ_${new Date().toISOString().slice(0, 10)}.csv`
+      `大会データ_${new Date().toISOString().slice(0, 10)}.csv`,
     );
   };
 
@@ -217,7 +218,7 @@ export default function AdminPanel({
 
     downloadCSV(
       header + rows,
-      `採点簿_AM1_${new Date().toISOString().slice(0, 10)}.csv`
+      `採点簿_AM1_${new Date().toISOString().slice(0, 10)}.csv`,
     );
   };
 
@@ -225,7 +226,7 @@ export default function AdminPanel({
   const handleResetData = async () => {
     if (
       !window.confirm(
-        '【警告】全てのデータを完全に削除します。\n実行前にバックアップ(エクスポート)を推奨します。\n本当によろしいですか？'
+        '【警告】全てのデータを完全に削除します。\n実行前にバックアップ(エクスポート)を推奨します。\n本当によろしいですか？',
       )
     )
       return;
@@ -250,7 +251,7 @@ export default function AdminPanel({
   const handleResetScores = async () => {
     if (
       !window.confirm(
-        '全選手の「スコア」「順位」をクリアしますか？\n選手データや立順は保持されます。\n(リハーサル後の本番準備などに使用します)'
+        '全選手の「スコア」「順位」をクリアしますか？\n選手データや立順は保持されます。\n(リハーサル後の本番準備などに使用します)',
       )
     )
       return;
@@ -343,7 +344,7 @@ export default function AdminPanel({
 
   const handleCreateSnapshot = async () => {
     const label = prompt(
-      'バックアップの名前を入力してください (例: 予選終了後)'
+      'バックアップの名前を入力してください (例: 予選終了後)',
     );
     if (!label) return;
 
@@ -365,7 +366,7 @@ export default function AdminPanel({
   const handleRestoreSnapshot = async (id: string, label: string) => {
     if (
       !window.confirm(
-        `【警告】現在のデータを破棄し、バックアップ「${label}」の状態に戻します。\n本当によろしいですか？`
+        `【警告】現在のデータを破棄し、バックアップ「${label}」の状態に戻します。\n本当によろしいですか？`,
       )
     )
       return;
@@ -402,9 +403,9 @@ export default function AdminPanel({
   });
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <div className="max-w-5xl mx-auto space-y-6 pb-20 font-sans text-bk-brown">
       {/* タブナビゲーション */}
-      <div className="flex space-x-2 bg-white p-1 rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+      <div className="flex space-x-2 bg-white/50 p-2 rounded-2xl border-2 border-bk-brown overflow-x-auto no-scrollbar">
         {[
           { id: 'dashboard', label: 'ダッシュボード', icon: Activity },
           { id: 'players', label: '参加者管理', icon: Users },
@@ -414,28 +415,34 @@ export default function AdminPanel({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'bg-gray-800 text-white shadow-sm'
-                : 'text-gray-500 hover:bg-gray-100'
-            }`}
+            className={`
+              flex-1 flex items-center justify-center py-3 px-4 rounded-full text-sm font-black transition-all whitespace-nowrap border-2
+              ${
+                activeTab === tab.id
+                  ? 'bg-bk-brown text-white border-bk-brown shadow-sm'
+                  : 'bg-white text-bk-brown border-transparent hover:border-bk-brown hover:bg-bk-beige'
+              }
+            `}
           >
-            <tab.icon size={18} className="mr-2" />
+            <tab.icon size={18} className="mr-2" strokeWidth={2.5} />
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* ダッシュボード */}
+      {/* =================================================================
+          ダッシュボード (進行管理 & お知らせ)
+         ================================================================= */}
       {activeTab === 'dashboard' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4 border-b pb-2">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                <Activity className="mr-2 text-blue-600" /> 進行状況の管理
+          {/* 進行フェーズ管理 */}
+          <div className="bg-white p-6 rounded-3xl border-4 border-bk-brown shadow-[8px_8px_0px_0px_rgba(80,35,20,0.15)] flex flex-col h-full">
+            <div className="flex items-center justify-between mb-6 border-b-2 border-bk-brown/10 pb-4">
+              <h2 className="text-xl font-black text-bk-brown flex items-center">
+                <Activity className="mr-3 text-bk-blue" /> 進行状況
               </h2>
               <label className="flex items-center cursor-pointer text-sm">
-                <span className="mr-2 text-gray-500 font-bold">
+                <span className="mr-2 text-bk-brown font-bold">
                   {settings.show_phase ? '表示中' : '非表示'}
                 </span>
                 <div className="relative">
@@ -448,77 +455,96 @@ export default function AdminPanel({
                     }
                   />
                   <div
-                    className={`block w-10 h-6 rounded-full transition-colors ${
-                      settings.show_phase ? 'bg-blue-600' : 'bg-gray-300'
-                    }`}
+                    className={`block w-12 h-7 rounded-full transition-colors border-2 border-bk-brown ${settings.show_phase ? 'bg-bk-green' : 'bg-gray-300'}`}
                   ></div>
                   <div
-                    className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${
-                      settings.show_phase ? 'transform translate-x-4' : ''
-                    }`}
+                    className={`dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full border-2 border-bk-brown transition-transform ${settings.show_phase ? 'transform translate-x-5' : ''}`}
                   ></div>
                 </div>
               </label>
             </div>
-            <div className="space-y-3 mb-4 grow">
+
+            <div className="space-y-3 mb-6 flex-grow">
               {[
-                { val: 'preparing', label: '準備中。。。' },
-                { val: 'qualifier', label: '予選進行中' },
-                { val: 'tally', label: '集計中' },
-                { val: 'final', label: '決勝進行中' },
-                { val: 'finished', label: '全日程終了' },
+                {
+                  val: 'preparing',
+                  label: '準備中。。。',
+                  color: 'bg-teal-100 border-teal-700 text-teal-900',
+                },
+                {
+                  val: 'qualifier',
+                  label: '予選進行中',
+                  color: 'bg-blue-100 border-blue-700 text-blue-900',
+                },
+                {
+                  val: 'tally',
+                  label: '集計中',
+                  color: 'bg-bk-orange border-bk-brown text-bk-brown',
+                },
+                {
+                  val: 'final',
+                  label: '決勝進行中',
+                  color: 'bg-bk-red border-bk-brown text-white',
+                },
+                {
+                  val: 'finished',
+                  label: '全日程終了',
+                  color: 'bg-gray-200 border-gray-600 text-gray-800',
+                },
               ].map((phase) => (
                 <label
                   key={phase.val}
-                  className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
+                  className={`
+                  flex items-center p-3 rounded-xl border-4 cursor-pointer transition-all active:scale-[0.99]
+                  ${
                     settings.current_phase === phase.val
-                      ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
-                      : 'border-gray-200 hover:bg-gray-50'
-                  }`}
+                      ? `${phase.color} shadow-sm`
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-bk-brown/50'
+                  }
+                `}
                 >
-                  <input
-                    type="radio"
-                    name="phase"
-                    value={phase.val}
-                    checked={settings.current_phase === phase.val}
-                    onChange={(e) =>
-                      handleSettingChange('current_phase', e.target.value)
-                    }
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <span className="ml-3 font-bold text-gray-700">
-                    {phase.label}
-                  </span>
+                  <div
+                    className={`
+                    w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3
+                    ${settings.current_phase === phase.val ? 'bg-white border-bk-brown' : 'border-gray-300'}
+                  `}
+                  >
+                    {settings.current_phase === phase.val && (
+                      <div className="w-3 h-3 bg-bk-brown rounded-full" />
+                    )}
+                  </div>
+                  <span className="font-black text-lg">{phase.label}</span>
                   {settings.current_phase === phase.val && (
-                    <span className="ml-auto text-xs bg-blue-600 text-white px-2 py-1 rounded">
-                      現在
+                    <span className="ml-auto text-xs bg-bk-brown text-white px-3 py-1 rounded-full font-bold">
+                      NOW
                     </span>
                   )}
                 </label>
               ))}
             </div>
+
             <button
               onClick={saveSettings}
               disabled={isSaving}
-              className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm active:scale-95"
+              className="w-full bg-bk-brown text-white font-black py-4 rounded-xl hover:bg-bk-brown/90 transition-all flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(80,35,20,0.3)] active:translate-y-[2px] active:shadow-none"
             >
               {isSaving ? (
                 <RefreshCw className="animate-spin mr-2" />
               ) : (
                 <Save className="mr-2" />
               )}
-              設定を更新
+              設定を更新する
             </button>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4 border-b pb-2">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                <Megaphone className="mr-2 text-orange-500" />{' '}
-                運営からのお知らせ
+          {/* お知らせ配信 */}
+          <div className="bg-white p-6 rounded-3xl border-4 border-bk-brown shadow-[8px_8px_0px_0px_rgba(80,35,20,0.15)] flex flex-col h-full">
+            <div className="flex items-center justify-between mb-6 border-b-2 border-bk-brown/10 pb-4">
+              <h2 className="text-xl font-black text-bk-brown flex items-center">
+                <Megaphone className="mr-3 text-bk-orange" /> お知らせ
               </h2>
               <label className="flex items-center cursor-pointer text-sm">
-                <span className="mr-2 text-gray-500 font-bold">
+                <span className="mr-2 text-bk-brown font-bold">
                   {settings.show_announcement ? '表示中' : '非表示'}
                 </span>
                 <div className="relative">
@@ -531,39 +557,32 @@ export default function AdminPanel({
                     }
                   />
                   <div
-                    className={`block w-10 h-6 rounded-full transition-colors ${
-                      settings.show_announcement
-                        ? 'bg-orange-500'
-                        : 'bg-gray-300'
-                    }`}
+                    className={`block w-12 h-7 rounded-full transition-colors border-2 border-bk-brown ${settings.show_announcement ? 'bg-bk-orange' : 'bg-gray-300'}`}
                   ></div>
                   <div
-                    className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${
-                      settings.show_announcement
-                        ? 'transform translate-x-4'
-                        : ''
-                    }`}
+                    className={`dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full border-2 border-bk-brown transition-transform ${settings.show_announcement ? 'transform translate-x-5' : ''}`}
                   ></div>
                 </div>
               </label>
             </div>
-            <div className="mb-4 grow">
-              <p className="text-sm text-gray-500 mb-2">
-                閲覧ページの上部に表示されるメッセージです。
+
+            <div className="mb-4 flex-grow">
+              <p className="text-xs font-bold text-gray-500 mb-2 uppercase">
+                Message to Display
               </p>
               <textarea
                 value={settings.announcement || ''}
                 onChange={(e) =>
                   handleSettingChange('announcement', e.target.value)
                 }
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-h-30 resize-none h-40"
+                className="w-full p-4 border-4 border-gray-300 rounded-xl focus:outline-none focus:border-bk-orange text-bk-brown font-medium min-h-30 resize-none h-48 placeholder:text-gray-300"
                 placeholder="例: 只今昼食休憩中です。再開は13:00を予定しています。"
               />
             </div>
             <button
               onClick={saveSettings}
               disabled={isSaving}
-              className="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center shadow-sm active:scale-95"
+              className="w-full bg-bk-orange text-bk-brown font-black py-4 rounded-xl hover:bg-bk-orange/90 transition-all flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(80,35,20,0.3)] active:translate-y-[2px] active:shadow-none border-2 border-bk-brown"
             >
               {isSaving ? (
                 <RefreshCw className="animate-spin mr-2" />
@@ -576,17 +595,20 @@ export default function AdminPanel({
         </div>
       )}
 
-      {/* 参加者管理 */}
+      {/* =================================================================
+          参加者管理 (欠席設定)
+         ================================================================= */}
       {activeTab === 'players' && (
-        <div className="space-y-4">
-          <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg shadow-sm flex items-start">
+        <div className="space-y-6">
+          <div className="bg-yellow-50 border-4 border-bk-orange p-5 rounded-2xl shadow-sm flex items-start">
             <AlertTriangle
-              className="text-yellow-600 mr-3 shrink-0 mt-0.5"
-              size={20}
+              className="text-bk-orange mr-4 shrink-0 mt-0.5"
+              size={28}
+              strokeWidth={2.5}
             />
-            <div className="text-sm text-yellow-800">
-              <p className="font-bold mb-1">欠席処理に関する重要な注意</p>
-              <p className="leading-relaxed">
+            <div className="text-sm text-bk-brown">
+              <p className="font-black text-lg mb-1">WARNING: 欠席処理</p>
+              <p className="font-medium leading-relaxed">
                 「欠席にする」ボタンを押すと、対象者はリストから除外され、
                 <strong>後続の全選手の立順が自動的に繰り上がります。</strong>
                 <br />
@@ -594,62 +616,64 @@ export default function AdminPanel({
               </p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                <Users className="mr-2" /> 参加者一覧 ({filteredPlayers.length}
-                名)
+
+          <div className="bg-white rounded-3xl border-4 border-bk-brown shadow-[8px_8px_0px_0px_rgba(80,35,20,0.15)] overflow-hidden">
+            <div className="p-5 border-b-4 border-bk-brown bg-bk-beige/20 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <h2 className="text-xl font-black text-bk-brown flex items-center uppercase">
+                <Users className="mr-3" /> Player List{' '}
+                <span className="ml-2 text-sm bg-white px-3 py-1 rounded-full border-2 border-bk-brown">
+                  {filteredPlayers.length}
+                </span>
               </h2>
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full sm:w-72">
                 <Search
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={18}
+                  size={20}
                 />
                 <input
                   type="text"
-                  placeholder="名前、チーム、No.で検索"
+                  placeholder="NAME / TEAM / No."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-gray-300 rounded-xl text-sm font-bold focus:outline-none focus:border-bk-brown focus:ring-0"
                 />
               </div>
             </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-600">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-bk-brown uppercase bg-bk-beige/50 border-b-2 border-bk-brown">
                   <tr>
-                    <th className="px-6 py-3">No.</th>
-                    <th className="px-6 py-3">氏名 / 所属</th>
-                    <th className="px-6 py-3 text-center">状態</th>
-                    <th className="px-6 py-3 text-center">操作</th>
+                    <th className="px-6 py-4 font-black">No.</th>
+                    <th className="px-6 py-4 font-black">Name / Team</th>
+                    <th className="px-6 py-4 font-black text-center">Status</th>
+                    <th className="px-6 py-4 font-black text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y-2 divide-gray-100">
                   {filteredPlayers.map((player: any) => (
                     <tr
                       key={player.id}
-                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        player.is_absent ? 'bg-gray-100 text-gray-400' : ''
-                      }`}
+                      className={`transition-colors ${player.is_absent ? 'bg-gray-50' : 'hover:bg-bk-beige/10'}`}
                     >
-                      <td className="px-6 py-4 font-bold">
+                      <td className="px-6 py-4 font-black text-bk-brown font-pop text-lg">
                         {player.bib_number}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold">
+                        <div className="font-bold text-base text-bk-brown">
                           {player.participants?.name}
                         </div>
-                        <div className="text-xs">
+                        <div className="text-xs font-bold text-gray-500">
                           {player.participants?.teams?.name}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         {player.is_absent ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-gray-200 text-gray-500 border border-gray-300">
                             欠席
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-bk-green text-white border border-bk-brown shadow-[2px_2px_0px_0px_rgba(80,35,20,0.5)]">
                             出席
                           </span>
                         )}
@@ -659,14 +683,30 @@ export default function AdminPanel({
                           <button
                             onClick={() => handleMakeAbsent(player)}
                             disabled={isSaving}
-                            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold bg-red-100 text-red-700 hover:bg-red-200 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center px-4 py-2 rounded-lg text-xs font-black bg-white text-bk-red border-2 border-bk-red hover:bg-bk-red hover:text-white transition-all active:scale-95 shadow-sm"
                           >
-                            <UserX size={14} className="mr-1" /> 欠席にする
+                            <UserX size={16} className="mr-2" strokeWidth={3} />{' '}
+                            欠席にする
                           </button>
+                        )}
+                        {player.is_absent && (
+                          <span className="text-xl font-black text-gray-300">
+                            -
+                          </span>
                         )}
                       </td>
                     </tr>
                   ))}
+                  {filteredPlayers.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-6 py-12 text-center text-gray-400 font-bold text-lg"
+                      >
+                        NO DATA
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -674,19 +714,28 @@ export default function AdminPanel({
         </div>
       )}
 
-      {/* 大会設定 */}
+      {/* =================================================================
+          大会設定
+         ================================================================= */}
       {activeTab === 'settings' && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center border-b pb-2">
-            <Settings className="mr-2" /> 大会基本設定
+        <div className="bg-white p-6 rounded-3xl border-4 border-bk-brown shadow-[8px_8px_0px_0px_rgba(80,35,20,0.15)]">
+          <h2 className="text-xl font-black text-bk-brown mb-8 flex items-center border-b-2 border-bk-brown/10 pb-4">
+            <Settings className="mr-3 text-bk-brown" /> BASE SETTINGS
           </h2>
-          <div className="grid grid-cols-1 gap-8">
+
+          <div className="grid grid-cols-1 gap-8 max-w-lg">
             <div>
-              <label className="text-sm font-bold text-gray-700 mb-2 flex items-center">
-                <Trophy size={16} className="mr-1 text-yellow-600" />{' '}
+              <label className="block text-base font-black text-bk-brown mb-3 flex items-center">
+                <Trophy
+                  size={20}
+                  className="mr-2 text-bk-orange fill-bk-orange"
+                />{' '}
                 個人入賞枠数
               </label>
-              <div className="flex items-center">
+              <p className="text-xs font-bold text-gray-500 mb-3">
+                上位何位までを入賞（表彰対象）とするか設定します。
+              </p>
+              <div className="flex items-center gap-3">
                 <input
                   type="number"
                   min="1"
@@ -694,20 +743,21 @@ export default function AdminPanel({
                   onChange={(e) =>
                     handleSettingChange(
                       'individual_prize_count',
-                      Number(e.target.value)
+                      Number(e.target.value),
                     )
                   }
-                  className="w-24 p-2 border border-gray-300 rounded-lg text-center font-bold"
+                  className="w-24 p-3 border-4 border-bk-brown rounded-xl text-center font-black text-xl font-pop focus:outline-none focus:border-bk-orange"
                 />
-                <span className="ml-2 text-gray-700">位まで</span>
+                <span className="text-lg font-bold text-bk-brown">位まで</span>
               </div>
             </div>
           </div>
-          <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
+
+          <div className="mt-10 pt-6 border-t-2 border-bk-brown/10 flex justify-end">
             <button
               onClick={saveSettings}
               disabled={isSaving}
-              className="bg-gray-800 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-900 transition-colors flex items-center"
+              className="bg-bk-brown text-white font-black py-3 px-8 rounded-xl hover:bg-bk-brown/90 transition-all flex items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[2px] active:shadow-none"
             >
               {isSaving ? (
                 <RefreshCw className="animate-spin mr-2" />
@@ -720,71 +770,88 @@ export default function AdminPanel({
         </div>
       )}
 
-      {/* データ管理 (新規追加) */}
+      {/* =================================================================
+          データ管理 (新規追加)
+         ================================================================= */}
       {activeTab === 'data' && (
         <div className="space-y-8">
           {/* 1. バックアップと復元 (スナップショット) */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex justify-between items-center mb-4 border-b pb-2">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                <Archive className="mr-2 text-purple-600" /> バックアップと復元
+          <div className="bg-white p-6 rounded-3xl border-4 border-bk-brown shadow-[8px_8px_0px_0px_rgba(80,35,20,0.15)]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b-2 border-bk-brown/10 pb-4 gap-4">
+              <h2 className="text-xl font-black text-bk-brown flex items-center uppercase">
+                <Archive className="mr-3 text-purple-600" /> BACKUP & RESTORE
               </h2>
               <button
                 onClick={handleCreateSnapshot}
                 disabled={isSaving}
-                className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-purple-700 flex items-center"
+                className="w-full sm:w-auto text-sm bg-purple-600 text-white px-5 py-3 rounded-xl font-black hover:bg-purple-700 flex items-center justify-center border-2 border-bk-brown shadow-sm active:translate-y-0.5"
               >
-                <Save size={16} className="mr-1" /> 現在の状態を保存
+                <Save size={18} className="mr-2" /> SAVE SNAPSHOT
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {snapshots.length === 0 && (
-                <p className="text-gray-400 text-sm">
+                <p className="text-gray-400 font-bold text-center py-6">
                   バックアップデータはありません。
                 </p>
               )}
               {snapshots.map((snap) => (
                 <div
                   key={snap.id}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border-2 border-gray-200 hover:border-bk-brown/30 transition-colors"
                 >
                   <div>
-                    <p className="font-bold text-gray-800">{snap.label}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-bold text-bk-brown text-lg">
+                      {snap.label}
+                    </p>
+                    <p className="text-xs font-bold text-gray-400 mt-1">
                       {new Date(snap.created_at).toLocaleString()}
                     </p>
                   </div>
                   <button
                     onClick={() => handleRestoreSnapshot(snap.id, snap.label)}
                     disabled={isSaving}
-                    className="text-xs border border-purple-500 text-purple-600 px-3 py-1.5 rounded hover:bg-purple-50 flex items-center"
+                    className="text-xs font-black border-2 border-purple-500 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 flex items-center active:scale-95"
                   >
-                    <History size={14} className="mr-1" /> この状態に戻す
+                    <History size={16} className="mr-1.5" /> RESTORE
                   </button>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 2. インポートとエクスポート */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* CSVインポート */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <Upload className="mr-2 text-blue-600" /> データ登録 (CSV)
+            <div className="bg-white p-6 rounded-3xl border-4 border-bk-brown shadow-sm">
+              <h2 className="text-lg font-black text-bk-brown mb-4 flex items-center uppercase">
+                <Upload className="mr-2 text-bk-blue" /> Data Import
               </h2>
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start">
+                  <FileText
+                    className="text-blue-600 mr-2 mt-1 shrink-0"
+                    size={20}
+                  />
+                  <div className="text-xs font-bold text-blue-900">
+                    <p className="mb-2">CSV FORMAT (Header required)</p>
+                    <code className="block bg-white p-2 rounded border border-blue-200 font-mono text-[10px] break-all leading-relaxed">
+                      bib_number, player_name, team_name, dan_rank, carriage,
+                      order_am1, order_am2, order_pm1
+                    </code>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-4 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-white hover:border-bk-brown transition-colors group">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     {isSaving ? (
                       <RefreshCw className="w-8 h-8 mb-3 text-gray-400 animate-spin" />
                     ) : (
-                      <Upload className="w-8 h-8 mb-3 text-gray-400" />
+                      <Upload className="w-8 h-8 mb-3 text-gray-400 group-hover:text-bk-brown" />
                     )}
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">
-                        クリックしてCSVを選択
-                      </span>
+                    <p className="mb-1 text-sm text-gray-500 font-bold group-hover:text-bk-brown">
+                      Click to upload CSV
                     </p>
                   </div>
                   <input
@@ -800,53 +867,53 @@ export default function AdminPanel({
             </div>
 
             {/* エクスポート */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <Download className="mr-2 text-green-600" /> データ出力 (CSV)
+            <div className="bg-white p-6 rounded-3xl border-4 border-bk-brown shadow-sm">
+              <h2 className="text-lg font-black text-bk-brown mb-4 flex items-center uppercase">
+                <Download className="mr-2 text-bk-green" /> Data Export
               </h2>
               <div className="space-y-3">
                 <button
                   onClick={handleExportData}
-                  className="w-full flex items-center justify-center py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-bold text-gray-700"
+                  className="w-full flex items-center justify-center py-4 border-2 border-bk-brown rounded-xl hover:bg-bk-beige text-sm font-black text-bk-brown transition-all shadow-sm active:translate-y-0.5"
                 >
-                  <FileText size={16} className="mr-2 text-gray-500" />{' '}
-                  全データ(バックアップ用)
+                  <FileText size={18} className="mr-2 text-gray-500" /> ALL DATA
+                  (Backup)
                 </button>
                 <button
                   onClick={handleExportScoreSheet}
-                  className="w-full flex items-center justify-center py-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-bold text-gray-700"
+                  className="w-full flex items-center justify-center py-4 border-2 border-bk-brown rounded-xl hover:bg-bk-beige text-sm font-black text-bk-brown transition-all shadow-sm active:translate-y-0.5"
                 >
-                  <FileText size={16} className="mr-2 text-gray-500" />{' '}
-                  採点簿(AM1・空枠付き)
+                  <FileText size={18} className="mr-2 text-gray-500" /> SCORE
+                  SHEET (AM1)
                 </button>
               </div>
             </div>
           </div>
 
           {/* 3. リセット操作 */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-red-200">
-            <h2 className="text-lg font-bold text-red-600 mb-4 flex items-center">
-              <AlertTriangle className="mr-2" /> リセット操作
+          <div className="bg-white p-6 rounded-3xl border-4 border-bk-red shadow-sm">
+            <h2 className="text-lg font-black text-bk-red mb-4 flex items-center uppercase">
+              <AlertTriangle className="mr-2" /> DANGER ZONE
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 onClick={handleResetScores}
                 disabled={isSaving}
-                className="py-3 px-4 rounded-lg bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 flex items-center justify-center border border-red-200"
+                className="py-3 px-4 rounded-xl bg-red-50 text-bk-red font-black text-sm hover:bg-red-100 flex items-center justify-center border-2 border-red-200"
               >
                 <RotateCcw size={16} className="mr-2" /> スコアのみクリア
               </button>
               <button
                 onClick={handleResetStatuses}
                 disabled={isSaving}
-                className="py-3 px-4 rounded-lg bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 flex items-center justify-center border border-red-200"
+                className="py-3 px-4 rounded-xl bg-red-50 text-bk-red font-black text-sm hover:bg-red-100 flex items-center justify-center border-2 border-red-200"
               >
                 <RotateCcw size={16} className="mr-2" /> 進行状況リセット
               </button>
               <button
                 onClick={handleResetData}
                 disabled={isSaving}
-                className="py-3 px-4 rounded-lg bg-red-600 text-white font-bold text-sm hover:bg-red-700 flex items-center justify-center shadow-md"
+                className="py-3 px-4 rounded-xl bg-bk-red text-white font-black text-sm hover:bg-[#a31b00] flex items-center justify-center shadow-md border-2 border-bk-brown"
               >
                 <Trash2 size={16} className="mr-2" /> 全データ完全削除
               </button>

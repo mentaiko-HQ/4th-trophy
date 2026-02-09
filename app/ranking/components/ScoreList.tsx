@@ -26,7 +26,10 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import Image from 'next/image';
 
-// 大会設定の型定義
+// ------------------------------------------------------------------
+// 型定義
+// ------------------------------------------------------------------
+
 export interface TournamentSettings {
   current_phase: 'preparing' | 'qualifier' | 'tally' | 'final' | 'finished';
   announcement: string | null;
@@ -36,7 +39,6 @@ export interface TournamentSettings {
   show_announcement?: boolean;
 }
 
-// データの型定義
 export interface PlayerData {
   id: string;
   bib_number: string | number;
@@ -75,6 +77,10 @@ type SortKey =
   | 'order_am2'
   | 'order_pm1';
 
+// ------------------------------------------------------------------
+// コンポーネント実装
+// ------------------------------------------------------------------
+
 export default function ScoreList({
   players = [],
   settings,
@@ -107,14 +113,14 @@ export default function ScoreList({
         { event: '*', schema: 'public', table: 'entries' },
         () => {
           router.refresh();
-        }
+        },
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tournament_settings' },
         () => {
           router.refresh();
-        }
+        },
       )
       .subscribe();
     return () => {
@@ -146,11 +152,10 @@ export default function ScoreList({
 
     if (!hasSeen) {
       setShowOpening(true);
-
       const timer = setTimeout(() => {
         setShowOpening(false);
         sessionStorage.setItem('hasSeenRankingOpening', 'true');
-      }, 2000);
+      }, 1500);
 
       setIsInitialized(true);
       setTimeout(checkScroll, 1600);
@@ -169,55 +174,51 @@ export default function ScoreList({
 
   const safePlayers = useMemo(
     () => (Array.isArray(players) ? players : []),
-    [players]
+    [players],
   );
   const safePlayoffPlayers = useMemo(
     () => (Array.isArray(playoffPlayers) ? playoffPlayers : []),
-    [playoffPlayers]
+    [playoffPlayers],
   );
 
   const getPhaseInfo = (phase?: string) => {
+    const baseClass =
+      'border-4 rounded-xl font-bold px-4 py-2 flex items-center justify-between shadow-sm';
     switch (phase) {
       case 'preparing':
         return {
           label: '準備中。。。',
-          containerClass: 'bg-teal-50 border-teal-500',
-          textClass: 'text-teal-800',
-          iconClass: 'text-teal-600',
+          className: `${baseClass} bg-teal-100 border-teal-700 text-teal-900`,
+          iconClass: 'text-teal-700',
         };
       case 'qualifier':
         return {
           label: '予選進行中',
-          containerClass: 'bg-blue-50 border-blue-500',
-          textClass: 'text-blue-800',
-          iconClass: 'text-blue-600',
+          className: `${baseClass} bg-blue-100 border-blue-700 text-blue-900`,
+          iconClass: 'text-blue-700',
         };
       case 'tally':
         return {
           label: '集計中',
-          containerClass: 'bg-orange-50 border-orange-500',
-          textClass: 'text-orange-800',
-          iconClass: 'text-orange-600',
+          className: `${baseClass} bg-bk-orange border-bk-brown text-bk-brown`,
+          iconClass: 'text-bk-brown',
         };
       case 'final':
         return {
           label: '決勝進行中',
-          containerClass: 'bg-red-50 border-red-500',
-          textClass: 'text-red-800',
-          iconClass: 'text-red-600',
+          className: `${baseClass} bg-bk-red border-bk-brown text-white`,
+          iconClass: 'text-white',
         };
       case 'finished':
         return {
           label: '全日程終了',
-          containerClass: 'bg-gray-100 border-gray-500',
-          textClass: 'text-gray-800',
+          className: `${baseClass} bg-gray-200 border-gray-600 text-gray-800`,
           iconClass: 'text-gray-600',
         };
       default:
         return {
           label: '',
-          containerClass: 'bg-gray-50 border-gray-300',
-          textClass: 'text-gray-500',
+          className: `${baseClass} bg-gray-100 border-gray-400 text-gray-600`,
           iconClass: 'text-gray-400',
         };
     }
@@ -226,15 +227,19 @@ export default function ScoreList({
   const phaseInfo = getPhaseInfo(settings?.current_phase);
 
   const renderScore = (score: number | null | undefined, maxScore: number) => {
-    if (score == null) return <span className="text-gray-400">-</span>;
+    if (score == null) return <span className="text-gray-400 font-pop">-</span>;
     const isMax = score === maxScore;
     return (
       <div className="flex items-center justify-center gap-1">
-        <span className="font-bold">{score}中</span>
+        <span
+          className={`font-pop font-black text-xl ${isMax ? 'text-bk-red' : 'text-bk-brown'}`}
+        >
+          {score}
+        </span>
         {isMax && (
           <Star
-            size={14}
-            className="text-yellow-500 fill-yellow-500"
+            size={16}
+            className="text-bk-orange fill-bk-orange"
             aria-label="皆中"
           />
         )}
@@ -244,10 +249,10 @@ export default function ScoreList({
 
   const renderOrderInfo = (
     order: number | null | undefined,
-    status: string | null | undefined
+    status: string | null | undefined,
   ) => {
     const orderDisplay = order ? (
-      <span className="text-lg font-bold text-[#324857]">{order}番</span>
+      <span className="text-lg font-pop font-black text-bk-brown">{order}</span>
     ) : (
       <span className="text-gray-400">-</span>
     );
@@ -255,7 +260,7 @@ export default function ScoreList({
       return (
         <div className="flex flex-col items-center">
           {orderDisplay}
-          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold border border-red-200 animate-pulse whitespace-nowrap">
+          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-bk-red text-white text-[10px] font-bold border-2 border-bk-brown animate-pulse whitespace-nowrap">
             行射中
           </span>
         </div>
@@ -265,8 +270,8 @@ export default function ScoreList({
       return (
         <div className="flex flex-col items-center">
           {orderDisplay}
-          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 whitespace-nowrap">
-            控えに待機
+          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold border-2 border-blue-800 whitespace-nowrap">
+            控え
           </span>
         </div>
       );
@@ -275,7 +280,11 @@ export default function ScoreList({
   };
 
   const displayOrder = (order: number | null | undefined) =>
-    order ? `${order}番` : '-';
+    order ? (
+      <span className="font-pop font-black text-lg text-bk-brown">{order}</span>
+    ) : (
+      '-'
+    );
 
   const filteredPlayers = useMemo(() => {
     if (!Array.isArray(safePlayers)) return [];
@@ -312,21 +321,21 @@ export default function ScoreList({
         sortedResult.sort(
           (a, b) =>
             (a.order_am1 ?? Number.MAX_SAFE_INTEGER) -
-            (b.order_am1 ?? Number.MAX_SAFE_INTEGER)
+            (b.order_am1 ?? Number.MAX_SAFE_INTEGER),
         );
         break;
       case 'am2':
         sortedResult.sort(
           (a, b) =>
             (a.order_am2 ?? Number.MAX_SAFE_INTEGER) -
-            (b.order_am2 ?? Number.MAX_SAFE_INTEGER)
+            (b.order_am2 ?? Number.MAX_SAFE_INTEGER),
         );
         break;
       case 'pm1':
         sortedResult.sort(
           (a, b) =>
             (a.order_pm1 ?? Number.MAX_SAFE_INTEGER) -
-            (b.order_pm1 ?? Number.MAX_SAFE_INTEGER)
+            (b.order_pm1 ?? Number.MAX_SAFE_INTEGER),
         );
         break;
       case 'total':
@@ -404,7 +413,7 @@ export default function ScoreList({
     : [filteredPlayers];
 
   const calculateReferenceStats = (
-    key: 'team_name' | 'dan_rank' | 'carriage'
+    key: 'team_name' | 'dan_rank' | 'carriage',
   ) => {
     const groups: Record<
       string,
@@ -428,21 +437,21 @@ export default function ScoreList({
         avg_am2: (stats.am2 / stats.count).toFixed(2),
         avg_pm1: (stats.pm1 / stats.count).toFixed(2),
         avg_total: ((stats.am1 + stats.am2 + stats.pm1) / stats.count).toFixed(
-          2
+          2,
         ),
       }))
       .sort((a, b) => parseFloat(b.avg_total) - parseFloat(a.avg_total));
   };
 
-  if (!isInitialized) return <div className="min-h-screen bg-white"></div>;
+  if (!isInitialized) return <div className="min-h-screen bg-bk-beige"></div>;
 
   return (
     <>
       {isClient && showOpening && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white">
           <style jsx global>{`
             .poyon {
-              animation: poyon 1.8s linear 0s 1;
+              animation: poyon 1.1s linear 0s 1;
             }
             @keyframes poyon {
               0% {
@@ -490,42 +499,44 @@ export default function ScoreList({
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto pb-10 font-sans text-gray-800 relative">
-        <div className="mb-4 space-y-2 px-1">
+      <div className="max-w-3xl mx-auto pb-10 font-sans text-bk-brown relative">
+        <div className="mb-6 space-y-3 px-1">
           {settings?.show_phase !== false && settings?.current_phase && (
-            <div
-              className={`${phaseInfo.containerClass} border-l-4 p-3 rounded-r-lg shadow-sm flex items-center justify-between`}
-            >
-              <span
-                className={`font-bold text-sm flex items-center ${phaseInfo.textClass}`}
-              >
-                <Activity size={16} className={`mr-2 ${phaseInfo.iconClass}`} />
-                現在の状況: {phaseInfo.label}
+            <div className={phaseInfo?.className}>
+              <span className="font-bold text-sm flex items-center">
+                <Activity
+                  size={20}
+                  className={`mr-2 ${phaseInfo?.iconClass}`}
+                />
+                現在の状況:{' '}
+                <span className="ml-2 text-lg font-black">
+                  {phaseInfo?.label}
+                </span>
               </span>
             </div>
           )}
 
           {settings?.show_announcement !== false && settings?.announcement && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg shadow-sm flex items-start">
+            <div className="bg-white border-4 border-bk-orange p-4 rounded-xl shadow-sm flex items-start">
               <Megaphone
-                size={16}
-                className="text-yellow-600 mt-0.5 mr-2 shrink-0"
+                size={24}
+                className="text-bk-orange mt-0.5 mr-3 shrink-0"
               />
-              <p className="text-sm text-yellow-800 whitespace-pre-wrap leading-relaxed">
+              <p className="text-base font-bold text-bk-brown whitespace-pre-wrap leading-relaxed">
                 {settings.announcement}
               </p>
             </div>
           )}
 
           {safePlayoffPlayers.length > 0 && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="bg-red-100 border-4 border-bk-red p-4 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center mb-2">
-                <Target className="text-red-600 mr-2" size={20} />
-                <h3 className="font-bold text-red-800">
+                <Target className="text-bk-red mr-2" size={24} />
+                <h3 className="font-black text-xl text-bk-red">
                   順位決定戦（競射）対象者
                 </h3>
               </div>
-              <p className="text-xs text-red-600 mb-2">
+              <p className="text-sm font-bold text-bk-red mb-3">
                 入賞枠（{settings?.individual_prize_count}
                 位まで）を決定するため、以下の選手は競射の対象となります。
               </p>
@@ -533,9 +544,9 @@ export default function ScoreList({
                 {safePlayoffPlayers.map((p) => (
                   <span
                     key={p.id}
-                    className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold bg-white text-red-700 border border-red-200 shadow-sm"
+                    className="inline-flex items-center px-3 py-1.5 rounded-full text-base font-black bg-white text-bk-red border-2 border-bk-red shadow-sm"
                   >
-                    <span className="text-xs text-red-400 mr-1">
+                    <span className="text-xs mr-1 font-normal opacity-80">
                       No.{p.bib_number}
                     </span>
                     {p.player_name}
@@ -546,169 +557,136 @@ export default function ScoreList({
           )}
         </div>
 
-        <div className="flex justify-end mb-3 pt-2 px-1">
+        <div className="flex justify-end mb-4 px-1">
           <button
             onClick={() => setShowHelp(true)}
-            className="flex items-center text-xs font-bold text-[#34675C] hover:text-[#2a524a] bg-white px-3 py-1.5 rounded-full border border-[#34675C]/30 shadow-sm transition-all hover:bg-[#34675C]/5"
+            className="flex items-center text-xs font-black text-bk-brown bg-white px-4 py-2 rounded-full border-2 border-bk-brown hover:bg-bk-beige transition-all shadow-[2px_2px_0px_0px_rgba(80,35,20,1)] active:shadow-none active:translate-y-[2px]"
           >
             <Info size={16} className="mr-1.5" />
             画面の見方・ルール
           </button>
         </div>
 
-        <div className="relative mb-4 group">
+        <div className="relative mb-6 group">
           {canScrollLeft && (
             <button
               onClick={() => scrollTabs('left')}
-              className="absolute left-0 top-0 bottom-0 z-10 w-8 bg-linear-to-r from-gray-50 to-transparent flex items-center justify-start pl-1"
+              className="absolute left-0 top-0 bottom-0 z-10 w-10 bg-linear-to-r from-bk-beige to-transparent flex items-center justify-start pl-1"
               aria-label="左へスクロール"
             >
-              <ChevronLeft
-                size={20}
-                className="text-[#34675C] drop-shadow-sm"
-              />
+              <ChevronLeft size={24} className="text-bk-brown drop-shadow-sm" />
             </button>
           )}
 
           <div
             ref={tabsListRef}
             onScroll={checkScroll}
-            className="flex bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200 overflow-x-auto no-scrollbar scroll-smooth relative"
+            className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth relative px-1 pb-2"
           >
-            <button
-              data-tab="order_list"
-              onClick={() => setActiveTab('order_list')}
-              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-                activeTab === 'order_list'
-                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              立順表
-            </button>
-            <button
-              data-tab="am1"
-              onClick={() => setActiveTab('am1')}
-              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-                activeTab === 'am1'
-                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              午前1立目
-            </button>
-            <button
-              data-tab="am2"
-              onClick={() => setActiveTab('am2')}
-              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-                activeTab === 'am2'
-                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              午後1立目
-            </button>
-            <button
-              data-tab="pm1"
-              onClick={() => setActiveTab('pm1')}
-              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-                activeTab === 'pm1'
-                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              午後2立目
-            </button>
-            <button
-              data-tab="total"
-              onClick={() => setActiveTab('total')}
-              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-                activeTab === 'total'
-                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              総合成績
-            </button>
-            <button
-              data-tab="reference"
-              onClick={() => setActiveTab('reference')}
-              className={`flex-1 min-w-17.5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors duration-200 whitespace-nowrap ${
-                activeTab === 'reference'
-                  ? 'border-[#34675C] text-[#34675C] bg-[#34675C]/5'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              参考成績
-            </button>
+            {[
+              { id: 'order_list', label: '立順表' },
+              { id: 'am1', label: '午前' },
+              { id: 'am2', label: '午後1' },
+              { id: 'pm1', label: '午後2' },
+              { id: 'total', label: '総合' },
+              { id: 'reference', label: '参考' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                data-tab={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`
+                  flex-shrink-0 min-w-20 py-2 px-4 text-sm font-black rounded-full border-2 transition-all duration-200 whitespace-nowrap
+                  ${
+                    activeTab === tab.id
+                      ? 'bg-bk-brown text-white border-bk-brown shadow-[2px_2px_0px_0px_rgba(255,255,255,0.5)]'
+                      : 'bg-white text-bk-brown border-bk-brown hover:bg-bk-beige shadow-[2px_2px_0px_0px_rgba(80,35,20,1)]'
+                  }
+                  active:translate-y-[2px] active:shadow-none
+                `}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {canScrollRight && (
             <button
               onClick={() => scrollTabs('right')}
-              className="absolute right-0 top-0 bottom-0 z-10 w-8 bg-linear-to-l from-gray-50 to-transparent flex items-center justify-end pr-1"
+              className="absolute right-0 top-0 bottom-0 z-10 w-10 bg-linear-to-l from-bk-beige to-transparent flex items-center justify-end pr-1"
               aria-label="右へスクロール"
             >
               <ChevronRight
-                size={20}
-                className="text-[#34675C] drop-shadow-sm"
+                size={24}
+                className="text-bk-brown drop-shadow-sm"
               />
             </button>
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 px-1">
           {activeTab === 'reference' ? (
-            <div className="space-y-8">
+            <div className="space-y-6">
               {['team_name', 'dan_rank', 'carriage'].map((key) => {
                 const title =
                   key === 'team_name'
                     ? 'チーム別成績'
                     : key === 'dan_rank'
-                    ? '段位別成績'
-                    : '所作別成績';
+                      ? '段位別成績'
+                      : '所作別成績';
                 const stats = calculateReferenceStats(key as any);
                 return (
                   <div
                     key={key}
-                    className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                    className="bg-white rounded-2xl border-4 border-bk-brown overflow-hidden shadow-[6px_6px_0px_0px_rgba(80,35,20,0.2)]"
                   >
-                    <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center">
-                      <BarChart2 size={18} className="text-[#34675C] mr-2" />
-                      <h3 className="font-bold text-gray-800">{title}</h3>
+                    <div className="bg-bk-green px-4 py-3 border-b-4 border-bk-brown flex items-center text-white">
+                      <BarChart2 size={24} className="mr-2" />
+                      <h3 className="font-black text-lg">{title}</h3>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm text-center">
-                        <thead className="text-xs text-gray-500 bg-gray-50 uppercase">
+                        <thead className="text-xs text-bk-brown bg-bk-beige/50 uppercase font-bold border-b-2 border-bk-brown">
                           <tr>
-                            <th className="px-4 py-2 text-left">名称</th>
-                            <th className="px-2 py-2">人数</th>
-                            <th className="px-2 py-2">午前1</th>
-                            <th className="px-2 py-2">午後1</th>
-                            <th className="px-2 py-2">午後2</th>
-                            <th className="px-2 py-2 bg-[#F8FAFC] font-bold text-[#34675C]">
-                              平均合計
+                            <th className="px-4 py-3 text-left">名称</th>
+                            <th className="px-2 py-3">人数</th>
+                            <th className="px-2 py-3">午前</th>
+                            <th className="px-2 py-3">午後１</th>
+                            <th className="px-2 py-3">午後２</th>
+                            <th className="px-2 py-3 bg-bk-orange/20 text-bk-brown font-black">
+                              平均
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y-2 divide-bk-brown/10">
                           {stats.map((row) => (
-                            <tr key={row.name}>
-                              <td className="px-4 py-3 text-left font-bold text-gray-700">
+                            <tr key={row.name} className="hover:bg-yellow-50">
+                              <td className="px-4 py-3 text-left font-bold text-bk-brown">
                                 {row.name}
                               </td>
-                              <td className="px-2 py-3">{row.count}</td>
-                              <td className="px-2 py-3">{row.avg_am1}</td>
-                              <td className="px-2 py-3">{row.avg_am2}</td>
-                              <td className="px-2 py-3">{row.avg_pm1}</td>
-                              <td className="px-2 py-3 bg-[#F8FAFC] font-bold text-[#34675C] text-lg">
+                              <td className="px-2 py-3 font-medium">
+                                {row.count}
+                              </td>
+                              <td className="px-2 py-3 font-pop">
+                                {row.avg_am1}
+                              </td>
+                              <td className="px-2 py-3 font-pop">
+                                {row.avg_am2}
+                              </td>
+                              <td className="px-2 py-3 font-pop">
+                                {row.avg_pm1}
+                              </td>
+                              <td className="px-2 py-3 bg-bk-orange/10 font-pop font-black text-bk-red text-lg">
                                 {row.avg_total}
                               </td>
                             </tr>
                           ))}
                           {stats.length === 0 && (
                             <tr>
-                              <td colSpan={6} className="py-4 text-gray-400">
+                              <td
+                                colSpan={6}
+                                className="py-8 text-gray-400 font-bold"
+                              >
                                 データがありません
                               </td>
                             </tr>
@@ -722,81 +700,78 @@ export default function ScoreList({
             </div>
           ) : (
             <>
-              <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-sm mb-2">
+              {/* コントロールバー */}
+              <div className="bg-white border-4 border-bk-brown rounded-2xl p-3 shadow-[6px_6px_0px_0px_rgba(80,35,20,0.2)] mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-bold text-gray-500 ml-2">
-                    表示件数:{' '}
-                    <span className="text-[#34675C] text-sm">
+                  <span className="text-sm font-black text-bk-brown ml-1">
+                    HIT:{' '}
+                    <span className="text-bk-red text-lg font-pop">
                       {filteredPlayers.length}
                     </span>{' '}
-                    / {safePlayers.length}件
+                    / {safePlayers.length}
                   </span>
                   <button
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className={`flex items-center text-xs font-bold border rounded px-3 py-1.5 shadow-sm transition-colors ${
-                      isFilterOpen
-                        ? 'bg-[#34675C] text-white border-[#34675C]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center text-xs font-black border-2 rounded-full px-4 py-2 transition-all active:translate-y-0.5 ${isFilterOpen ? 'bg-bk-brown text-white border-bk-brown' : 'bg-white text-bk-brown border-bk-brown hover:bg-bk-beige'}`}
                   >
-                    <Filter size={12} className="mr-1" />
-                    {isFilterOpen ? '閉じる' : '絞り込み'}
+                    <Filter size={14} className="mr-1" />
+                    {isFilterOpen ? 'CLOSE' : 'FILTER'}
                   </button>
                 </div>
                 {activeTab === 'order_list' && (
-                  <div className="flex justify-end items-center gap-2 mb-2 px-1 border-t border-gray-100 pt-2">
+                  <div className="flex justify-end items-center gap-2 mb-1 px-1 border-t-2 border-bk-brown/10 pt-2">
                     <span className="text-xs font-bold text-gray-500 flex items-center">
-                      <ArrowUpDown size={12} className="mr-1" />
-                      並び替え:
+                      <ArrowUpDown size={14} className="mr-1" />
+                      SORT:
                     </span>
                     <select
                       value={sortKey}
                       onChange={(e) => setSortKey(e.target.value as SortKey)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-gray-50 focus:outline-none focus:border-[#34675C] focus:ring-1 focus:ring-[#34675C]"
+                      className="text-xs border-2 border-bk-brown rounded-lg px-2 py-1.5 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-bk-orange"
                     >
                       <option value="bib_number">No. (ID)</option>
                       <option value="player_name">氏名</option>
-                      <option value="order_am1">午前1立順</option>
-                      <option value="order_am2">午後1立順</option>
-                      <option value="order_pm1">午後2立順</option>
+                      <option value="order_am1">午前立順</option>
+                      <option value="order_am2">午後１立順</option>
+                      <option value="order_pm1">午後２立順</option>
                     </select>
                     <button
                       onClick={() =>
                         setSortOrder((prev) =>
-                          prev === 'asc' ? 'desc' : 'asc'
+                          prev === 'asc' ? 'desc' : 'asc',
                         )
                       }
-                      className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-gray-600 transition-colors"
+                      className="p-1.5 border-2 border-bk-brown rounded-lg hover:bg-bk-beige text-bk-brown transition-colors"
                       title={sortOrder === 'asc' ? '昇順' : '降順'}
                     >
                       {sortOrder === 'asc' ? (
-                        <ArrowUp size={14} />
+                        <ArrowUp size={16} />
                       ) : (
-                        <ArrowDown size={14} />
+                        <ArrowDown size={16} />
                       )}
                     </button>
                   </div>
                 )}
                 {isFilterOpen && (
-                  <div className="mt-2 pt-2 border-t border-gray-100 animate-in slide-in-from-top-1 fade-in duration-200">
+                  <div className="mt-2 pt-2 border-t-2 border-bk-brown/10 animate-in slide-in-from-top-1 fade-in duration-200">
                     <div className="relative">
                       <Search
                         className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                        size={16}
+                        size={18}
                       />
                       <input
                         type="text"
-                        placeholder="選手名、チーム名、No.で検索..."
+                        placeholder="NAME / TEAM / No."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#34675C]/20 focus:border-[#34675C]"
+                        className="w-full pl-10 pr-10 py-2 text-sm font-bold border-2 border-gray-300 rounded-xl focus:outline-none focus:border-bk-orange focus:ring-0 text-bk-brown placeholder:text-gray-400"
                       />
                       {searchTerm && (
                         <button
                           onClick={() => setSearchTerm('')}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-bk-red"
                         >
-                          <X size={16} />
+                          <X size={18} />
                         </button>
                       )}
                     </div>
@@ -805,54 +780,66 @@ export default function ScoreList({
               </div>
 
               {playerGroups.map((group, groupIndex) => (
-                <div key={groupIndex} className={isGroupedView ? 'mb-6' : ''}>
+                <div
+                  key={groupIndex}
+                  className={isGroupedView ? 'mb-8 relative' : ''}
+                >
+                  {/* 区切り線（グループ表示時） */}
+                  {isGroupedView && (
+                    <div className="absolute -top-4 left-0 right-0 flex items-center justify-center">
+                      <div className="bg-bk-beige px-3 text-xs font-black text-bk-brown/30">
+                        GROUP {groupIndex + 1}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     {group.map((player) => {
                       if (activeTab === 'order_list') {
                         return (
                           <div
                             key={player.id}
-                            className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
+                            className="bg-white rounded-2xl border-4 border-bk-brown overflow-hidden shadow-[6px_6px_0px_0px_rgba(80,35,20,0.15)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all duration-200"
                           >
-                            <div className="p-4 border-b border-[#E8ECEF]">
+                            <div className="p-4 border-b-2 border-bk-brown/10 bg-white">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
+                                <span className="bg-bk-brown text-white text-xs font-pop font-black px-2 py-0.5 rounded">
                                   No.{player.bib_number}
                                 </span>
-                                <div className="font-bold text-[#324857] truncate text-lg">
+                                <div className="font-bold text-bk-brown truncate text-lg">
                                   {player.player_name}
                                 </div>
                               </div>
-                              <div className="text-xs text-[#7B8B9A] font-medium truncate pl-1">
+                              <div className="text-sm font-bold text-gray-500 truncate pl-1">
                                 {player.team_name}
                               </div>
                             </div>
-                            <div className="flex bg-[#F8FAFC] divide-x divide-[#E8ECEF]">
+                            <div className="flex bg-bk-beige/30 divide-x-2 divide-bk-brown/10">
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午前1立順
+                                <span className="text-[10px] text-gray-500 font-bold mb-0.5">
+                                  午前
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am1,
-                                  player.status_am1
+                                  player.status_am1,
                                 )}
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午後1立順
+                                <span className="text-[10px] text-gray-500 font-bold mb-0.5">
+                                  午後1
                                 </span>
                                 {renderOrderInfo(
                                   player.order_am2,
-                                  player.status_am2
+                                  player.status_am2,
                                 )}
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                  午後2立順
+                                <span className="text-[10px] text-gray-500 font-bold mb-0.5">
+                                  午後2
                                 </span>
                                 {renderOrderInfo(
                                   player.order_pm1,
-                                  player.status_pm1
+                                  player.status_pm1,
                                 )}
                               </div>
                             </div>
@@ -865,24 +852,24 @@ export default function ScoreList({
                         return (
                           <div
                             key={player.id}
-                            className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
+                            className="bg-white rounded-2xl border-4 border-bk-brown overflow-hidden shadow-[6px_6px_0px_0px_rgba(80,35,20,0.15)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all duration-200"
                           >
-                            <div className="p-4 border-b border-[#E8ECEF]">
+                            <div className="p-4 border-b-2 border-bk-brown/10">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
+                                <span className="bg-bk-brown text-white text-xs font-pop font-black px-2 py-0.5 rounded">
                                   No.{player.bib_number}
                                 </span>
-                                <div className="font-bold text-[#324857] truncate text-lg">
+                                <div className="font-bold text-bk-brown truncate text-lg">
                                   {player.player_name}
                                 </div>
                               </div>
-                              <div className="text-xs text-[#7B8B9A] font-medium truncate pl-1">
+                              <div className="text-sm font-bold text-gray-500 truncate pl-1">
                                 {player.team_name}
                               </div>
                             </div>
-                            <div className="flex bg-[#F8FAFC]">
-                              <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
-                                <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
+                            <div className="flex bg-bk-beige/30">
+                              <div className="flex-1 py-3 flex flex-col items-center justify-center border-r-2 border-bk-brown/10">
+                                <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
                                   <ListOrdered size={14} className="mr-1" />
                                   <span>立順</span>
                                 </div>
@@ -891,11 +878,11 @@ export default function ScoreList({
                                 </div>
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                                <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
+                                <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
                                   <Target size={14} className="mr-1" />
-                                  <span>的中数</span>
+                                  <span>的中</span>
                                 </div>
-                                <div className="text-xl font-bold text-[#324857]">
+                                <div className="text-xl font-pop font-black text-bk-brown">
                                   {renderScore(data?.score, maxScore)}
                                 </div>
                               </div>
@@ -906,78 +893,76 @@ export default function ScoreList({
                       return (
                         <div
                           key={player.id}
-                          className="bg-white rounded-xl shadow-sm border border-[#E8ECEF] overflow-hidden hover:shadow-md transition-shadow duration-200"
+                          className="bg-white rounded-2xl border-4 border-bk-brown overflow-hidden shadow-[6px_6px_0px_0px_rgba(80,35,20,0.15)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all duration-200"
                         >
-                          <div className="p-4 flex items-center justify-between">
-                            <div className="flex items-center space-x-3 flex-1 min-w-0">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="bg-[#E8ECEF] text-[#7B8B9A] text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap">
-                                    No.{player.bib_number}
-                                  </span>
-                                  <div className="font-bold text-[#324857] truncate text-lg">
-                                    {player.player_name}
-                                  </div>
+                          <div className="p-4 flex items-center justify-between border-b-2 border-bk-brown/10">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="bg-bk-brown text-white text-xs font-pop font-black px-2 py-0.5 rounded">
+                                  No.{player.bib_number}
+                                </span>
+                                <div className="font-bold text-bk-brown truncate text-lg">
+                                  {player.player_name}
                                 </div>
-                                <div className="text-xs text-[#7B8B9A] font-medium truncate pl-1">
-                                  {player.team_name}
-                                </div>
+                              </div>
+                              <div className="text-sm font-bold text-gray-500 truncate pl-1">
+                                {player.team_name}
                               </div>
                             </div>
                           </div>
-                          <div className="flex border-t border-[#E8ECEF] bg-white divide-x divide-[#E8ECEF]">
+                          <div className="flex border-b-2 border-bk-brown/10 bg-white divide-x-2 divide-bk-brown/10">
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
-                              <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
-                                午前1
+                              <span className="text-[10px] text-gray-400 font-bold mb-0.5">
+                                午前
                               </span>
-                              <span className="text-sm font-bold text-[#324857]">
+                              <span className="text-sm font-bold">
                                 {renderScore(player.score_am1, 2)}
                               </span>
                             </div>
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
-                              <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                              <span className="text-[10px] text-gray-400 font-bold mb-0.5">
                                 午後1
                               </span>
-                              <span className="text-sm font-bold text-[#324857]">
+                              <span className="text-sm font-bold">
                                 {renderScore(player.score_am2, 2)}
                               </span>
                             </div>
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
-                              <span className="text-[10px] text-[#7B8B9A] font-bold mb-0.5">
+                              <span className="text-[10px] text-gray-400 font-bold mb-0.5">
                                 午後2
                               </span>
-                              <span className="text-sm font-bold text-[#324857]">
+                              <span className="text-sm font-bold">
                                 {renderScore(player.score_pm1, 4)}
                               </span>
                             </div>
                           </div>
-                          <div className="flex border-t border-[#E8ECEF] bg-[#F8FAFC]">
-                            <div className="flex-1 py-3 flex flex-col items-center justify-center border-r border-[#E8ECEF]">
-                              <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
-                                <Target size={14} className="mr-1" />
-                                <span>合計的中数</span>
+                          <div className="flex border-b-2 border-bk-brown/10 bg-bk-beige/30">
+                            <div className="flex-1 py-3 flex flex-col items-center justify-center border-r-2 border-bk-brown/10">
+                              <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
+                                <Target size={16} className="mr-1" />
+                                <span>合計</span>
                               </div>
-                              <div className="text-xl font-bold text-[#324857]">
+                              <div className="text-2xl font-pop font-black text-bk-brown">
                                 {player.total_score}
-                                <span className="text-xs font-normal text-[#7B8B9A] ml-1">
+                                <span className="text-xs font-bold ml-1 text-gray-500">
                                   中
                                 </span>
                               </div>
                             </div>
                             <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                              <div className="flex items-center text-xs text-[#7B8B9A] mb-1 font-bold">
-                                <Trophy size={14} className="mr-1" />
+                              <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
+                                <Trophy size={16} className="mr-1" />
                                 <span>暫定順位</span>
                               </div>
                               <div className="flex items-center justify-center">
-                                <span className="text-xl font-bold text-[#324857] mr-2">
+                                <span className="text-2xl font-pop font-black text-bk-brown mr-2">
                                   {player.provisional_ranking
-                                    ? `${player.provisional_ranking}位`
+                                    ? `${player.provisional_ranking}`
                                     : '-'}
                                 </span>
                                 {player.provisional_ranking && (
-                                  <div className="flex items-center justify-center w-6 h-6 bg-[#34675C] rounded-full text-white shadow-sm">
-                                    <span className="text-[10px] font-bold">
+                                  <div className="flex items-center justify-center w-6 h-6 bg-bk-green rounded-full text-white shadow-sm border border-bk-brown">
+                                    <span className="text-[10px] font-black">
                                       {player.provisional_ranking}
                                     </span>
                                   </div>
@@ -988,44 +973,38 @@ export default function ScoreList({
                           {(player.playoff_type ||
                             player.semifinal_score != null ||
                             player.semifinal_results != null) && (
-                            <div className="flex border-t border-[#E8ECEF] bg-blue-50/40 items-center justify-around py-2">
+                            <div className="flex border-b-2 border-bk-brown/10 bg-bk-orange/10 items-center justify-around py-2">
                               <div className="flex flex-col items-center min-w-12">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5">
                                   方式
                                 </span>
                                 <span
-                                  className={`text-sm font-bold ${
-                                    player.playoff_type === 'izume'
-                                      ? 'text-pink-600'
-                                      : player.playoff_type === 'enkin'
-                                      ? 'text-teal-600'
-                                      : 'text-gray-400'
-                                  }`}
+                                  className={`text-sm font-black ${player.playoff_type === 'izume' ? 'text-bk-red' : player.playoff_type === 'enkin' ? 'text-teal-600' : 'text-gray-400'}`}
                                 >
                                   {player.playoff_type === 'izume'
-                                    ? '射詰！'
+                                    ? '射詰'
                                     : player.playoff_type === 'enkin'
-                                    ? '遠近！'
-                                    : '-'}
+                                      ? '遠近'
+                                      : '-'}
                                 </span>
                               </div>
-                              <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-16">
+                              <div className="flex flex-col items-center border-l-2 border-bk-brown/10 pl-4 min-w-16">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
-                                  <Crosshair size={10} className="mr-1" />{' '}
-                                  射詰的中
+                                  <Crosshair size={12} className="mr-1" />{' '}
+                                  決勝射詰
                                 </span>
-                                <span className="text-sm font-bold text-gray-700">
+                                <span className="text-sm font-pop font-black text-bk-brown">
                                   {player.semifinal_score != null
                                     ? `${player.semifinal_score}中`
                                     : '-'}
                                 </span>
                               </div>
-                              <div className="flex flex-col items-center border-l border-gray-200 pl-6 min-w-16">
+                              <div className="flex flex-col items-center border-l-2 border-bk-brown/10 pl-4 min-w-16">
                                 <span className="text-[10px] text-gray-500 font-bold mb-0.5 flex items-center">
-                                  <HelpCircle size={10} className="mr-1" />{' '}
-                                  射遠順位
+                                  <HelpCircle size={12} className="mr-1" />{' '}
+                                  決勝射遠
                                 </span>
-                                <span className="text-sm font-bold text-gray-700">
+                                <span className="text-sm font-pop font-black text-bk-brown">
                                   {player.semifinal_results != null
                                     ? `${player.semifinal_results}位`
                                     : '-'}
@@ -1033,13 +1012,13 @@ export default function ScoreList({
                               </div>
                             </div>
                           )}
-                          <div className="flex border-t border-[#E8ECEF] bg-yellow-50/50">
+                          <div className="flex bg-bk-orange/20">
                             <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                              <div className="flex items-center text-xs text-[#b45309] mb-1 font-bold">
-                                <Medal size={14} className="mr-1" />
+                              <div className="flex items-center text-xs text-bk-brown font-black mb-1">
+                                <Medal size={16} className="mr-1" />
                                 <span>最終順位</span>
                               </div>
-                              <div className="text-2xl font-bold text-[#324857]">
+                              <div className="text-3xl font-pop font-black text-bk-red drop-shadow-sm">
                                 {player.final_ranking
                                   ? `${player.final_ranking}位`
                                   : '-'}
@@ -1050,22 +1029,17 @@ export default function ScoreList({
                       );
                     })}
                   </div>
-                  {isGroupedView && groupIndex < playerGroups.length - 1 && (
-                    <div className="flex items-center my-6">
-                      <div className="grow border-t-2 border-dashed border-gray-300"></div>
-                    </div>
-                  )}
                 </div>
               ))}
 
               {filteredPlayers.length === 0 && (
-                <div className="text-center py-12 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
-                  <p>該当する選手が見つかりません</p>
+                <div className="text-center py-12 text-gray-400 bg-white/50 rounded-2xl border-4 border-dashed border-gray-300 font-bold">
+                  <p>NO DATA</p>
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="text-[#34675C] text-sm font-bold mt-2 hover:underline"
+                    className="text-bk-red text-sm font-black mt-2 hover:underline uppercase"
                   >
-                    検索条件をクリア
+                    Clear Filter
                   </button>
                 </div>
               )}
@@ -1075,106 +1049,84 @@ export default function ScoreList({
 
         {showHelp && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="flex justify-between items-center bg-[#34675C] px-5 py-4">
-                <h3 className="text-white font-bold text-lg flex items-center">
+            <div className="bg-white w-full max-w-lg rounded-2xl border-4 border-bk-brown shadow-[8px_8px_0px_0px_rgba(80,35,20,0.5)] overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="flex justify-between items-center bg-bk-green px-5 py-4 border-b-4 border-bk-brown">
+                <h3 className="text-white font-black text-xl flex items-center uppercase">
                   <Info size={24} className="mr-2" />
-                  画面の見方・ルール
+                  HELP & RULES
                 </h3>
                 <button
                   onClick={() => setShowHelp(false)}
-                  className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+                  className="text-white hover:text-bk-beige transition-colors p-1 rounded-full hover:bg-white/20"
                 >
-                  <X size={24} />
+                  <X size={28} strokeWidth={3} />
                 </button>
               </div>
-              <div className="p-6 overflow-y-auto text-sm space-y-6 text-gray-700 leading-relaxed">
+              <div className="p-6 overflow-y-auto text-sm space-y-6 text-bk-brown leading-relaxed font-medium">
                 <section>
-                  <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
-                    表示について
+                  <h4 className="font-black text-bk-red text-lg border-b-2 border-bk-brown/20 pb-1 mb-3">
+                    DISPLAY
                   </h4>
-                  <ul className="space-y-2 ml-1">
+                  <ul className="space-y-3">
                     <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 shrink-0"></span>
+                      <span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span>
                       <span>
-                        <span className="font-bold text-gray-900">
-                          立順表タブ:
+                        <span className="font-bold text-bk-red">
+                          ORDER LIST:
                         </span>{' '}
                         ID（ゼッケン）順に表示されます。
                       </span>
                     </li>
                     <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 shrink-0"></span>
+                      <span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span>
                       <span>
-                        <span className="font-bold text-gray-900">
-                          午前・午後タブ:
+                        <span className="font-bold text-bk-red">
+                          AM/PM ROUNDS:
                         </span>{' '}
                         立順（射位順）の昇順で表示されます。
                       </span>
                     </li>
                     <li className="flex items-start">
-                      <span className="inline-block w-1.5 h-1.5 bg-[#34675C] rounded-full mt-1.5 mr-2 shrink-0"></span>
+                      <span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span>
                       <span>
-                        <span className="font-bold text-gray-900">
-                          総合成績タブ:
+                        <span className="font-bold text-bk-red">
+                          TOTAL RANKING:
                         </span>{' '}
-                        合計的中数が多い順に表示されます。同中の場合は、決勝（射詰・遠近）の結果に基づいて順位が決定します。
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="inline-block mt-0.5 mr-2 shrink-0">
-                        <Star
-                          size={14}
-                          className="text-yellow-500 fill-yellow-500"
-                        />
-                      </span>
-                      <span>
-                        <span className="font-bold text-gray-900">
-                          ★マーク:
-                        </span>{' '}
-                        各立の満点（皆中）のスコアに表示されます。
+                        合計的中数が多い順に表示されます。
                       </span>
                     </li>
                   </ul>
                 </section>
                 <section>
-                  <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
-                    操作方法
+                  <h4 className="font-black text-bk-red text-lg border-b-2 border-bk-brown/20 pb-1 mb-3">
+                    HOW TO USE
                   </h4>
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <div className="bg-bk-beige p-4 rounded-xl border-2 border-bk-brown">
                     <p className="mb-2">
-                      <span className="font-bold">絞り込み機能:</span>
+                      <span className="font-black">FILTER:</span>
                     </p>
                     <p>
-                      「絞り込み」ボタンを押すと検索バーが表示されます。選手名、所属チーム名、ゼッケン番号を入力して、表示する選手を絞り込むことができます。
+                      ボタンを押すと検索バーが表示され、選手名や所属で絞り込みが可能です。
                     </p>
                   </div>
                 </section>
                 <section>
-                  <h4 className="font-bold text-[#34675C] border-l-4 border-[#34675C] pl-2 mb-2 text-base">
-                    順位決定ルール
+                  <h4 className="font-black text-bk-red text-lg border-b-2 border-bk-brown/20 pb-1 mb-3">
+                    RANKING RULES
                   </h4>
-                  <p className="mb-2">
-                    総合成績の順位は、以下の優先順位で決定されます。
-                  </p>
-                  <ol className="list-decimal pl-5 space-y-1 font-medium bg-yellow-50/50 p-3 rounded-lg border border-yellow-100 text-gray-800">
+                  <ol className="list-decimal pl-5 space-y-2 font-bold marker:text-bk-orange">
                     <li>合計的中数（多い順）</li>
                     <li>射詰的中数（多い順）</li>
                     <li>射遠順位（数字が小さい順）</li>
-                    <li>
-                      <span className="text-xs font-normal text-gray-500">
-                        ※上記全て同じ場合は同順位となります
-                      </span>
-                    </li>
                   </ol>
                 </section>
               </div>
-              <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
+              <div className="p-4 border-t-4 border-bk-brown bg-bk-beige text-center">
                 <button
                   onClick={() => setShowHelp(false)}
-                  className="bg-[#34675C] text-white px-8 py-2.5 rounded-lg font-bold hover:bg-[#2a524a] transition-all shadow-sm active:scale-95"
+                  className="bg-bk-brown text-white px-8 py-3 rounded-full font-black hover:bg-bk-red transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[2px] active:shadow-none uppercase"
                 >
-                  閉じる
+                  CLOSE
                 </button>
               </div>
             </div>

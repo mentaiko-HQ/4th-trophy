@@ -1,13 +1,27 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
+/* 必要に応じてアニメーションライブラリを残す */
+/* @import 'tw-animate-css'; */
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* フォント変数の紐付け (layout.tsxで定義したもの) */
+  --font-sans:
+    var(--font-noto-sans-jp), ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-pop: var(--font-fredoka), var(--font-noto-sans-jp), sans-serif;
+
+  /* BK風カスタムカラー */
+  --color-bk-beige: var(--bk-beige);
+  --color-bk-brown: var(--bk-brown);
+  --color-bk-red: var(--bk-red);
+  --color-bk-orange: var(--bk-orange);
+  --color-bk-green: var(--bk-green);
+
+  /* システムカラーのマッピング */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,6 +51,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -47,72 +62,116 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  /* * バーガーキング風カラーパレット (OKLCH近似値)
+   * Beige: #F5EBDC -> oklch(0.94 0.03 85)
+   * Brown: #502314 -> oklch(0.25 0.05 45)
+   * Red:   #D62300 -> oklch(0.55 0.22 30)
+   * Orange:#FAAF18 -> oklch(0.78 0.18 70)
+   * Green: #377C2B -> oklch(0.52 0.16 140)
+   */
+  --bk-beige: oklch(0.94 0.03 85);
+  --bk-brown: oklch(0.25 0.05 45);
+  --bk-red: oklch(0.55 0.22 30);
+  --bk-orange: oklch(0.78 0.18 70);
+  --bk-green: oklch(0.52 0.16 140);
+
+  --radius: 1rem; /* 角丸を大きめに設定 */
+
+  /* 基本背景・文字色 */
+  --background: var(--bk-beige);
+  --foreground: var(--bk-brown);
+
+  /* カード・ポップオーバー */
+  --card: oklch(1 0 0); /* 白 */
+  --card-foreground: var(--bk-brown);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --popover-foreground: var(--bk-brown);
+
+  /* プライマリー（茶色ベース） */
+  --primary: var(--bk-brown);
+  --primary-foreground: oklch(0.94 0.03 85); /* ベージュ文字 */
+
+  /* セカンダリー（オレンジベース） */
+  --secondary: var(--bk-orange);
+  --secondary-foreground: var(--bk-brown);
+
+  /* ミュート（薄いベージュ/茶色） */
+  --muted: oklch(0.9 0.03 85);
+  --muted-foreground: oklch(0.4 0.05 45);
+
+  /* アクセント（緑ベース） */
+  --accent: var(--bk-green);
+  --accent-foreground: oklch(1 0 0);
+
+  /* 破壊的アクション（赤） */
+  --destructive: var(--bk-red);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ボーダー・入力フォーム（茶色ではっきりさせる） */
+  --border: var(--bk-brown);
+  --input: var(--bk-brown);
+  --ring: var(--bk-orange);
+
+  /* チャート色 */
+  --chart-1: var(--bk-red);
+  --chart-2: var(--bk-green);
+  --chart-3: var(--bk-orange);
+  --chart-4: oklch(0.6 0.15 250);
+  --chart-5: oklch(0.7 0.15 330);
+
+  /* サイドバー */
+  --sidebar: var(--bk-beige);
+  --sidebar-foreground: var(--bk-brown);
+  --sidebar-primary: var(--bk-brown);
+  --sidebar-primary-foreground: oklch(0.94 0.03 85);
+  --sidebar-accent: oklch(0.9 0.03 85);
+  --sidebar-accent-foreground: var(--bk-brown);
+  --sidebar-border: var(--bk-brown);
+  --sidebar-ring: var(--bk-orange);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  /* ダークモード時もポップさを維持しつつ視認性を確保（茶色背景） */
+  --background: var(--bk-brown);
+  --foreground: var(--bk-beige);
+
+  --card: oklch(0.3 0.05 45); /* 少し明るい茶色 */
+  --card-foreground: var(--bk-beige);
+
+  --popover: oklch(0.3 0.05 45);
+  --popover-foreground: var(--bk-beige);
+
+  --primary: var(--bk-beige);
+  --primary-foreground: var(--bk-brown);
+
+  --secondary: var(--bk-orange);
+  --secondary-foreground: var(--bk-brown);
+
+  --muted: oklch(0.35 0.05 45);
+  --muted-foreground: oklch(0.8 0.03 85);
+
+  --accent: var(--bk-green);
+  --accent-foreground: oklch(1 0 0);
+
+  --destructive: var(--bk-red);
+  --border: var(--bk-beige);
+  --input: var(--bk-beige);
+  --ring: var(--bk-orange);
+
+  --chart-1: var(--bk-red);
+  --chart-2: var(--bk-green);
+  --chart-3: var(--bk-orange);
+  --chart-4: oklch(0.6 0.15 250);
+  --chart-5: oklch(0.7 0.15 330);
+
+  --sidebar: var(--bk-brown);
+  --sidebar-foreground: var(--bk-beige);
+  --sidebar-primary: var(--bk-beige);
+  --sidebar-primary-foreground: var(--bk-brown);
+  --sidebar-accent: oklch(0.35 0.05 45);
+  --sidebar-accent-foreground: var(--bk-beige);
+  --sidebar-border: var(--bk-beige);
+  --sidebar-ring: var(--bk-orange);
 }
 
 @layer base {
@@ -121,5 +180,17 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* 見出しをポップで太いフォントに */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-pop), var(--font-sans), sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
   }
 }

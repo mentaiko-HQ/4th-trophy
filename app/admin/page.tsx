@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import AdminPanel from './components/AdminPanel';
+import AdminAuthGuard from './components/AdminAuthGuard';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default async function AdminPage() {
       `
       *,
       participants ( name, teams ( name ) )
-    `
+    `,
     )
     .order('bib_number', { ascending: true });
 
@@ -36,22 +37,31 @@ export default async function AdminPage() {
   if (playersError || settingsError) {
     console.error('Data fetch error:', playersError || settingsError);
     return (
-      <div className="p-10 text-red-600">データの読み込みに失敗しました。</div>
+      <div className="p-10 text-bk-red font-black text-xl">
+        データの読み込みに失敗しました。
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      <header className="bg-gray-800 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
-        <h1 className="text-lg font-bold">大会管理システム</h1>
-        <span className="text-xs bg-gray-700 px-2 py-1 rounded">
-          管理者モード
-        </span>
-      </header>
+    <AdminAuthGuard>
+      <div className="min-h-screen bg-bk-beige font-sans">
+        <header className="bg-bk-red text-white p-4 border-b-4 border-bk-brown shadow-none sticky top-0 z-10 flex justify-between items-center">
+          <h1 className="text-xl md:text-2xl font-pop font-black tracking-tight uppercase drop-shadow-sm flex items-center gap-2">
+            ADMIN
+            <span className="text-sm md:text-base font-bold bg-bk-brown px-3 py-1 rounded-full opacity-90 tracking-normal text-white">
+              大会管理
+            </span>
+          </h1>
+          <span className="text-xs font-black bg-white text-bk-red px-3 py-1 rounded-full border-2 border-bk-brown shadow-sm">
+            管理者モード
+          </span>
+        </header>
 
-      <main className="p-4 md:p-8">
-        <AdminPanel initialPlayers={players} initialSettings={settings} />
-      </main>
-    </div>
+        <main className="p-4 md:p-8">
+          <AdminPanel initialPlayers={players} initialSettings={settings} />
+        </main>
+      </div>
+    </AdminAuthGuard>
   );
 }

@@ -29,7 +29,7 @@ export default async function RankingPage() {
           name
         )
       )
-    `
+    `,
     )
     .neq('is_absent', true) // 欠席者を除外
     // 優先順位1: 合計的中数 (降順)
@@ -42,13 +42,15 @@ export default async function RankingPage() {
   if (error) {
     console.error(
       'Error fetching ranking data:',
-      JSON.stringify(error, null, 2)
+      JSON.stringify(error, null, 2),
     );
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-red-600 gap-4 p-4">
-        <h2 className="text-xl font-bold">データの取得に失敗しました</h2>
-        <div className="bg-gray-100 p-4 rounded border border-gray-300 text-sm font-mono text-gray-800 max-w-2xl w-full overflow-auto whitespace-pre-wrap">
-          <p className="font-bold mb-2">エラー詳細:</p>
+      <div className="min-h-screen flex flex-col items-center justify-center text-bk-red gap-4 p-4 bg-bk-beige">
+        <h2 className="text-xl font-black font-pop uppercase">
+          DATA FETCH ERROR
+        </h2>
+        <div className="bg-white p-4 rounded-xl border-4 border-bk-brown text-sm font-mono text-bk-brown max-w-2xl w-full overflow-auto whitespace-pre-wrap">
+          <p className="font-bold mb-2">Details:</p>
           {JSON.stringify(error, null, 2)}
         </div>
       </div>
@@ -106,7 +108,7 @@ export default async function RankingPage() {
         semifinal_score: entry.semifinal_score,
         semifinal_results: entry.semifinal_results,
       };
-    }
+    },
   );
 
   // 4. 競射対象者の抽出
@@ -135,13 +137,20 @@ export default async function RankingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="bg-[#34675C] text-white p-4 shadow-md sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-center">成績閲覧</h1>
+    <div className="min-h-screen bg-bk-beige font-sans">
+      <header className="bg-bk-red text-white p-4 border-b-4 border-bk-brown shadow-none sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto flex items-center justify-center">
+          <h1 className="text-xl md:text-3xl font-pop font-black tracking-tight uppercase drop-shadow-sm flex items-center gap-3">
+            RANKING
+            <span className="text-sm md:text-lg font-bold bg-bk-brown px-3 py-1 rounded-full opacity-90 tracking-normal text-white">
+              成績閲覧
+            </span>
+          </h1>
+        </div>
       </header>
 
-      <main className="p-4">
-        {/* settings プロパティを渡す（ScoreList側の型定義と一致させる必要があります） */}
+      <main className="p-4 md:p-6">
+        {/* settings プロパティを渡す */}
         <ScoreList
           players={players}
           settings={settings}

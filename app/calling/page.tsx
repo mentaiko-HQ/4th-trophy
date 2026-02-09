@@ -15,13 +15,10 @@ export default async function CallingPage({
 }) {
   const supabase = await createClient();
   const params = await searchParams;
-  // URLパラメータから現在のタブを取得（デフォルトは 'am1'）
   const currentTab = params?.tab || 'am1';
 
   // 1. データの取得
-  // entries テーブルからデータを取得します。
-  // player_name, team_name カラムは entries テーブルには存在しないと仮定し、
-  // participants テーブルを結合して取得します。
+  // is_absent が true でない（false または null）選手のみ取得
   const { data: entries, error } = await supabase
     .from('entries')
     .select(
@@ -40,22 +37,22 @@ export default async function CallingPage({
           name
         )
       )
-    `
+    `,
     )
-    .neq('is_absent', true) // ★重要: 欠席者を除外して取得します（欠番として詰めるため）
-    .order('bib_number', { ascending: true }); // 基本はゼッケン順で取得
+    .neq('is_absent', true) // 欠席者を除外
+    .order('bib_number', { ascending: true }); // ゼッケン順
 
   if (error) {
     console.error(
       'Error fetching calling data:',
-      JSON.stringify(error, null, 2)
+      JSON.stringify(error, null, 2),
     );
     return (
-      <div className="p-4 text-red-500 flex flex-col gap-2 min-h-screen items-center justify-center">
-        <h2 className="font-bold text-xl">
+      <div className="p-4 text-bk-red flex flex-col gap-2 min-h-screen items-center justify-center bg-bk-beige">
+        <h2 className="font-black text-xl">
           データの読み込みエラーが発生しました
         </h2>
-        <div className="bg-gray-100 p-4 rounded border border-gray-300 text-sm font-mono text-gray-800 max-w-2xl w-full overflow-auto whitespace-pre-wrap">
+        <div className="bg-white p-4 rounded-xl border-4 border-bk-brown text-sm font-mono text-bk-brown max-w-2xl w-full overflow-auto whitespace-pre-wrap">
           <p className="font-bold mb-2">エラー詳細:</p>
           {JSON.stringify(error, null, 2)}
         </div>
@@ -64,10 +61,7 @@ export default async function CallingPage({
   }
 
   // 2. データ変換
-  // DBから取得したデータをクライアントコンポーネント用の型 (PlayerData) に整形します
   const players: PlayerData[] = (entries || []).map((entry: any) => {
-    // participantsテーブル（結合先）から名前と所属を取得
-    // データがない場合のフォールバックも設定
     const name = entry.participants?.name || '不明な選手';
     const team = entry.participants?.teams?.name || '所属なし';
 
@@ -79,7 +73,6 @@ export default async function CallingPage({
       order_am1: entry.order_am1,
       order_am2: entry.order_am2,
       order_pm1: entry.order_pm1,
-      // ステータス情報（nullの場合は 'waiting' とする）
       status_am1: entry.status_am1 || 'waiting',
       status_am2: entry.status_am2 || 'waiting',
       status_pm1: entry.status_pm1 || 'waiting',
@@ -87,15 +80,19 @@ export default async function CallingPage({
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="bg-[#34675C] text-white p-4 shadow-md sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-center">
-          選手呼出管理 (ステータス変更)
-        </h1>
+    <div className="min-h-screen bg-bk-beige font-sans">
+      <header className="bg-bk-red text-white p-4 border-b-4 border-bk-brown shadow-none sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto flex items-center justify-center">
+          <h1 className="text-xl md:text-3xl font-pop font-black tracking-tight uppercase drop-shadow-sm flex items-center gap-3">
+            CALLING
+            <span className="text-sm md:text-lg font-bold bg-bk-brown px-3 py-1 rounded-full opacity-90 tracking-normal">
+              選手呼出
+            </span>
+          </h1>
+        </div>
       </header>
 
       <main className="p-4">
-        {/* クライアントコンポーネントにデータと現在のタブを渡す */}
         <CallingStatusClient players={players} currentTab={currentTab} />
       </main>
     </div>

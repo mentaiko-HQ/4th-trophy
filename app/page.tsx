@@ -4,92 +4,101 @@ import { Trophy, Edit3, Mic, Settings, Monitor } from 'lucide-react';
 export default function Home() {
   const menuItems = [
     {
-      title: '成績閲覧',
+      title: 'RANKING',
+      subtitle: '成績閲覧',
       description: '現在の順位や的中数を確認します',
       href: '/ranking',
       icon: Trophy,
-      // orange-500相当 -> oklch(0.704 0.191 47.56)
-      // orange-600相当 -> oklch(0.646 0.222 41.116)
-      color: 'bg-[oklch(0.704_0.191_47.56)]',
-      hoverColor: 'group-hover:text-[oklch(0.646_0.222_41.116)]',
+      bgColor: 'bg-bk-orange', // オレンジ
+      textColor: 'text-bk-brown',
     },
     {
-      title: '成績入力',
+      title: 'INPUT',
+      subtitle: '成績入力',
       description: '各立のスコアを入力・修正します',
       href: '/input',
       icon: Edit3,
-      // blue-600相当 -> oklch(0.546 0.245 262.88)
-      // blue-700相当 -> oklch(0.488 0.243 264.37)
-      color: 'bg-[oklch(0.546_0.245_262.88)]',
-      hoverColor: 'group-hover:text-[oklch(0.488_0.243_264.37)]',
+      bgColor: 'bg-bk-red', // 赤
+      textColor: 'text-white',
     },
     {
-      title: '選手呼出',
+      title: 'CALLING',
+      subtitle: '選手呼出',
       description: '進行状況に合わせて選手を呼び出します',
       href: '/calling',
       icon: Mic,
-      // green-600相当 -> oklch(0.627 0.194 149.21)
-      // green-700相当 -> oklch(0.527 0.154 150.92)
-      color: 'bg-[oklch(0.627_0.194_149.21)]',
-      hoverColor: 'group-hover:text-[oklch(0.527_0.154_150.92)]',
+      bgColor: 'bg-bk-green', // 緑
+      textColor: 'text-white',
     },
     {
-      title: '会場スクリーン',
+      title: 'SIGNAGE',
+      subtitle: '会場スクリーン',
       description: '行射・呼出状況を大画面で表示します',
       href: '/signage',
       icon: Monitor,
-      // purple-600相当 -> oklch(0.558 0.288 302.321)
-      // purple-700相当 -> oklch(0.496 0.265 301.924)
-      color: 'bg-[oklch(0.558_0.288_302.321)]',
-      hoverColor: 'group-hover:text-[oklch(0.496_0.265_301.924)]',
+      bgColor: 'bg-[#502314]', // 茶色
+      textColor: 'text-bk-beige',
     },
     {
-      title: '管理画面',
+      title: 'ADMIN',
+      subtitle: '管理画面',
       description: '大会設定、進行管理、欠席設定など',
       href: '/admin',
       icon: Settings,
-      // gray-700相当 -> oklch(0.373 0.034 259.73)
-      // gray-800相当 -> oklch(0.278 0.033 256.84)
-      color: 'bg-[oklch(0.373_0.034_259.73)]',
-      hoverColor: 'group-hover:text-[oklch(0.278_0.033_256.84)]',
+      bgColor: 'bg-gray-800',
+      textColor: 'text-white',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
+    <div className="min-h-screen bg-bk-beige font-sans flex flex-col">
       {/* ヘッダー */}
-      {/* #34675C (深緑) -> oklch(0.455 0.076 172.5) 近似値 */}
-      <header className="bg-[oklch(0.455_0.076_172.5)] text-white p-6 shadow-md">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-center tracking-wide">
-            ４め杯 運営管理システム
+      <header className="bg-bk-red text-white p-6 border-b-4 border-bk-brown shadow-none">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-3xl md:text-5xl font-pop font-black tracking-tighter uppercase drop-shadow-md">
+            4th
+            <br className="md:hidden" /> Mentaiko Trophy
           </h1>
+          <p className="text-sm md:text-base font-bold mt-1 opacity-90">
+            ４め杯 運営管理システム
+          </p>
         </div>
       </header>
 
       {/* メインメニュー */}
-      <main className="flex-1 p-6 flex flex-col justify-center max-w-4xl mx-auto w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <main className="flex-1 p-6 flex flex-col justify-center max-w-5xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {menuItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="group bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex items-start"
+              className={`
+                group relative overflow-hidden rounded-3xl border-4 border-bk-brown bg-white p-6
+                transition-transform duration-200 hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(80,35,20,1)]
+                active:translate-y-0 active:shadow-none
+              `}
             >
-              <div
-                className={`p-4 rounded-xl ${item.color} text-white mr-5 shadow-md group-hover:scale-110 transition-transform duration-300`}
-              >
-                <item.icon size={28} />
-              </div>
-              <div className="flex-1">
-                <h2
-                  className={`text-xl font-bold text-gray-800 mb-2 transition-colors ${item.hoverColor}`}
+              <div className="flex items-start justify-between relative z-10">
+                <div className="flex-1">
+                  <h2 className="text-4xl font-pop font-black uppercase mb-1 text-bk-brown">
+                    {item.title}
+                  </h2>
+                  <p className="text-lg font-bold text-gray-500 mb-2">
+                    {item.subtitle}
+                  </p>
+                  <p className="text-sm font-medium text-gray-600 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+                <div
+                  className={`
+                    flex items-center justify-center w-16 h-16 rounded-2xl border-4 border-bk-brown
+                    ${item.bgColor} ${item.textColor}
+                    group-hover:scale-110 transition-transform duration-300
+                  `}
                 >
-                  {item.title}
-                </h2>
-                <p className="text-sm text-gray-500 leading-relaxed">
-                  {item.description}
-                </p>
+                  <item.icon size={32} strokeWidth={3} />
+                </div>
               </div>
             </Link>
           ))}
@@ -97,8 +106,10 @@ export default function Home() {
       </main>
 
       {/* フッター */}
-      <footer className="p-6 text-center text-xs text-gray-400">
-        <p>&copy; 4th Mentaikotrophy Management System</p>
+      <footer className="p-6 text-center">
+        <p className="text-xs font-bold text-bk-brown/50 font-pop">
+          &copy; 4th Mentaikotrophy Management System
+        </p>
       </footer>
     </div>
   );

@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Settings, RefreshCw, Loader2 } from 'lucide-react';
+import { Settings, RefreshCw, Loader2, Target, Users } from 'lucide-react';
 
+// 表示するデータの型
 type SignagePlayer = {
   id: string;
   bib_number: string;
@@ -39,7 +40,7 @@ export default function SignageBoard() {
             name,
             teams ( name )
           )
-        `
+        `,
         )
         .neq('is_absent', true)
         .in(statusCol, ['shooting', 'called'])
@@ -66,29 +67,21 @@ export default function SignageBoard() {
     }
   }, [supabase, currentTab]);
 
-  // 【修正箇所】setIntervalを廃止し、Supabase Realtimeを使用
+  // Realtime更新の導入 (ポーリング廃止)
   useEffect(() => {
-    // 1. 初回データ取得
     fetchData();
 
-    // 2. リアルタイム購読の設定
     const channel = supabase
-      .channel('entries_changes')
+      .channel('signage-realtime')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE', // 更新があった時のみ反応
-          schema: 'public',
-          table: 'entries',
-        },
+        { event: '*', schema: 'public', table: 'entries' },
         () => {
-          // 変更を検知したらデータを再取得
           fetchData();
-        }
+        },
       )
       .subscribe();
 
-    // 3. クリーンアップ
     return () => {
       supabase.removeChannel(channel);
     };
@@ -97,76 +90,101 @@ export default function SignageBoard() {
   const toggleSettings = () => setShowSettings(!showSettings);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans overflow-hidden flex flex-col relative">
-      {/* 上段: 行射中 (Shooting) */}
-      <div className="flex-1 flex flex-col border-b-8 border-gray-800 bg-[#34675C]/10">
-        <div className="bg-[#34675C] px-8 py-3 flex justify-between items-center shadow-md shrink-0">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-wider text-white flex items-center">
-            <span className="inline-block w-5 h-5 bg-red-500 rounded-full animate-pulse mr-4"></span>
-            ただいまの立 (行射)
+    <div className="min-h-screen font-sans overflow-hidden flex flex-col relative bg-bk-beige text-bk-brown">
+      {/* ============================================================
+          上段: 行射中 (Shooting)
+          背景: 薄い赤、ヘッダー: 赤
+         ============================================================ */}
+      <div className="flex-1 flex flex-col border-b-8 border-bk-brown bg-[#FFF5F5]">
+        <div className="bg-bk-red px-8 py-4 flex justify-between items-center shadow-md border-b-4 border-bk-brown shrink-0">
+          <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white flex items-center uppercase font-pop">
+            <Target size={48} className="mr-4 text-bk-orange fill-bk-orange" />
+            SHOOTING{' '}
+            <span className="ml-4 text-2xl md:text-4xl font-bold bg-white text-bk-red px-4 py-1 rounded-full">
+              ただいまの立
+            </span>
           </h1>
-          <span className="text-xl font-mono opacity-80">Current Shooting</span>
+          <span className="text-xl md:text-2xl font-black text-white/80 font-pop">
+            Current Status
+          </span>
         </div>
 
-        <div className="flex-1 p-4 w-full flex items-center">
+        <div className="flex-1 p-6 w-full flex items-center justify-center">
           {shootingPlayers.length > 0 ? (
-            <div className="grid grid-cols-5 gap-4 w-full h-full max-h-[80vh] items-center">
+            <div className="grid grid-cols-5 gap-6 w-full h-full max-h-[85vh] items-center">
               {shootingPlayers.map((player) => (
                 <PlayerCard key={player.id} player={player} type="shooting" />
               ))}
             </div>
           ) : (
-            <div className="w-full text-center text-gray-500 text-4xl font-bold animate-pulse">
-              行射中の選手はいません
+            <div className="w-full text-center text-bk-brown/30 text-5xl font-black font-pop uppercase tracking-widest">
+              No Players
             </div>
           )}
         </div>
       </div>
 
-      {/* 下段: 呼出/控え (Called) */}
-      <div className="flex-1 flex flex-col bg-[#F0F4F5]/5">
-        <div className="bg-[#5C7C8A] px-8 py-3 flex justify-between items-center shadow-md shrink-0">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-wider text-white">
-            次の立 (控え)
+      {/* ============================================================
+          下段: 呼出/控え (Called)
+          背景: 薄い緑、ヘッダー: 緑
+         ============================================================ */}
+      <div className="flex-1 flex flex-col bg-[#F0FFF4]">
+        <div className="bg-bk-green px-8 py-4 flex justify-between items-center shadow-md border-y-4 border-bk-brown shrink-0">
+          <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white flex items-center uppercase font-pop">
+            <Users size={48} className="mr-4 text-white" />
+            STANDBY{' '}
+            <span className="ml-4 text-2xl md:text-4xl font-bold bg-white text-bk-green px-4 py-1 rounded-full">
+              次の立（控え）
+            </span>
           </h1>
-          <span className="text-xl font-mono opacity-80">Next / Standby</span>
+          <span className="text-xl md:text-2xl font-black text-white/80 font-pop">
+            Next Group
+          </span>
         </div>
 
-        <div className="flex-1 p-4 w-full flex items-center">
+        <div className="flex-1 p-6 w-full flex items-center justify-center">
           {calledPlayers.length > 0 ? (
-            <div className="grid grid-cols-5 gap-4 w-full h-full max-h-[80vh] items-center">
+            <div className="grid grid-cols-5 gap-6 w-full h-full max-h-[85vh] items-center">
               {calledPlayers.map((player) => (
                 <PlayerCard key={player.id} player={player} type="called" />
               ))}
             </div>
           ) : (
-            <div className="w-full text-center text-gray-600 text-3xl font-bold opacity-50">
-              呼出中の選手はいません
+            <div className="w-full text-center text-bk-brown/30 text-4xl font-black font-pop uppercase tracking-widest">
+              Waiting...
             </div>
           )}
         </div>
       </div>
 
-      {/* フッター・設定エリア */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-4 z-50">
-        <div className="text-gray-500 text-xs font-mono bg-black/50 px-2 py-1 rounded">
-          Last update: {lastUpdated.toLocaleTimeString()}
+      {/* ============================================================
+          フッター・設定エリア
+         ============================================================ */}
+      <div className="absolute bottom-6 right-6 flex items-center gap-4 z-50">
+        <div className="bg-bk-brown text-bk-beige text-sm font-bold px-3 py-1.5 rounded-full border-2 border-white shadow-lg font-pop">
+          UPDATE: {lastUpdated.toLocaleTimeString()}
         </div>
 
         <button
           onClick={toggleSettings}
-          className="p-2 bg-gray-800 hover:bg-gray-700 rounded-full shadow-lg text-white transition-colors"
+          className="p-3 bg-white hover:bg-bk-beige rounded-full shadow-[4px_4px_0px_0px_rgba(80,35,20,1)] text-bk-brown border-4 border-bk-brown transition-all active:translate-y-[2px] active:shadow-none"
         >
-          {isLoading ? <Loader2 className="animate-spin" /> : <Settings />}
+          {isLoading ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <Settings size={28} />
+          )}
         </button>
 
         {showSettings && (
-          <div className="absolute bottom-14 right-0 bg-white text-gray-900 p-4 rounded-lg shadow-xl w-64 border border-gray-200 animate-in slide-in-from-bottom-2 fade-in">
-            <h3 className="font-bold mb-3 border-b pb-1 text-gray-700">
-              表示設定
+          <div className="absolute bottom-20 right-0 bg-white text-bk-brown p-5 rounded-2xl shadow-[8px_8px_0px_0px_rgba(80,35,20,0.3)] w-72 border-4 border-bk-brown animate-in slide-in-from-bottom-2 fade-in">
+            <h3 className="font-black mb-3 border-b-2 border-bk-brown/20 pb-2 text-lg uppercase font-pop">
+              Settings
             </h3>
-            <div className="space-y-2">
-              <p className="text-xs text-gray-500 mb-1">対象の予選を選択</p>
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-gray-500 uppercase">
+                Target Round
+              </p>
               <div className="grid grid-cols-3 gap-2">
                 {(['am1', 'am2', 'pm1'] as const).map((tab) => (
                   <button
@@ -175,27 +193,23 @@ export default function SignageBoard() {
                       setCurrentTab(tab);
                       fetchData();
                     }}
-                    className={`py-2 px-1 text-sm font-bold rounded border ${
+                    className={`py-2 px-1 text-sm font-black rounded-lg border-2 transition-all font-pop uppercase ${
                       currentTab === tab
-                        ? 'bg-[#34675C] text-white border-[#34675C]'
-                        : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+                        ? 'bg-bk-orange text-bk-brown border-bk-brown shadow-sm'
+                        : 'bg-white text-gray-400 border-gray-300 hover:border-bk-brown'
                     }`}
                   >
-                    {tab === 'am1'
-                      ? '午前1'
-                      : tab === 'am2'
-                      ? '午前2'
-                      : '午後1'}
+                    {tab}
                   </button>
                 ))}
               </div>
             </div>
             <button
               onClick={fetchData}
-              className="mt-4 w-full flex items-center justify-center py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-bold text-gray-700"
+              className="mt-6 w-full flex items-center justify-center py-3 bg-bk-brown hover:bg-[#3a190f] rounded-xl text-sm font-black text-white shadow-sm active:scale-95 transition-all"
             >
-              <RefreshCw size={14} className="mr-2" />
-              即時更新
+              <RefreshCw size={16} className="mr-2" />
+              REFRESH
             </button>
           </div>
         )}
@@ -217,29 +231,30 @@ const PlayerCard = ({
   return (
     <div
       className={`
-      relative overflow-hidden rounded-xl shadow-lg border-l-8 h-full flex flex-col justify-center
-      ${
-        isShooting
-          ? 'bg-white border-l-[#34675C]'
-          : 'bg-gray-100 border-l-[#5C7C8A]'
-      }
-      transform transition-all duration-500 w-full
+      relative overflow-hidden rounded-3xl border-4 h-full flex flex-col justify-center w-full shadow-[6px_6px_0px_0px_rgba(80,35,20,0.15)]
+      ${isShooting ? 'bg-white border-bk-brown' : 'bg-white border-bk-green'}
+      transition-all duration-500
     `}
     >
       {/* 立順バッジ */}
-      <div className="absolute top-0 right-0 bg-gray-200 text-gray-600 px-3 py-1 rounded-bl-lg font-mono font-bold text-lg">
+      <div
+        className={`
+        absolute top-0 right-0 px-4 py-2 rounded-bl-2xl font-black font-pop text-2xl border-b-4 border-l-4
+        ${isShooting ? 'bg-bk-red text-white border-bk-brown' : 'bg-bk-green text-white border-bk-green'}
+      `}
+      >
         {player.order}
       </div>
 
-      <div className="p-3 md:p-4 lg:p-5">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="p-4 md:p-6 flex flex-col h-full justify-center">
+        <div className="flex items-center gap-2 mb-3">
           <span
             className={`
-             font-mono font-bold px-2 py-0.5 rounded text-xs md:text-sm
+             font-pop font-black px-3 py-1 rounded-full text-base md:text-lg border-2
              ${
                isShooting
-                 ? 'bg-[#34675C]/10 text-[#34675C]'
-                 : 'bg-gray-200 text-gray-600'
+                 ? 'bg-bk-brown text-white border-bk-brown'
+                 : 'bg-bk-beige text-bk-brown border-bk-brown'
              }
            `}
           >
@@ -247,26 +262,28 @@ const PlayerCard = ({
           </span>
         </div>
 
+        {/* 名前 */}
         <div
           className={`
-          font-bold mb-1 truncate leading-tight
+          font-black mb-2 truncate leading-tight tracking-tight
           ${
             isShooting
-              ? 'text-2xl md:text-3xl lg:text-4xl text-gray-900'
-              : 'text-xl md:text-2xl lg:text-3xl text-gray-800'
+              ? 'text-3xl md:text-4xl lg:text-5xl text-bk-brown'
+              : 'text-2xl md:text-3xl lg:text-4xl text-gray-800'
           }
         `}
         >
           {player.player_name}
         </div>
 
+        {/* チーム名 */}
         <div
           className={`
-          truncate font-medium
+          truncate font-bold
           ${
             isShooting
-              ? 'text-base md:text-lg lg:text-xl text-gray-600'
-              : 'text-sm md:text-base lg:text-lg text-gray-500'
+              ? 'text-xl md:text-2xl text-bk-red'
+              : 'text-lg md:text-xl text-bk-green'
           }
         `}
         >
