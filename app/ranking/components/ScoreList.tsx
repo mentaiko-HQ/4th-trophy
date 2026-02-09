@@ -188,7 +188,7 @@ export default function ScoreList({
       case 'preparing':
         return {
           label: '準備中。。。',
-          className: `${baseClass} bg-teal-100 border-teal-700 text-teal-900`,
+          containerClass: 'bg-teal-100 border-teal-700 text-teal-900',
           iconClass: 'text-teal-700',
         };
       case 'qualifier':
@@ -226,19 +226,20 @@ export default function ScoreList({
 
   const phaseInfo = getPhaseInfo(settings?.current_phase);
 
+  // 修正: スコアのフォントサイズを text-xl から text-3xl に拡大
   const renderScore = (score: number | null | undefined, maxScore: number) => {
     if (score == null) return <span className="text-gray-400 font-pop">-</span>;
     const isMax = score === maxScore;
     return (
       <div className="flex items-center justify-center gap-1">
         <span
-          className={`font-pop font-black text-xl ${isMax ? 'text-bk-red' : 'text-bk-brown'}`}
+          className={`font-pop font-black text-3xl ${isMax ? 'text-bk-red' : 'text-bk-brown'}`}
         >
           {score}
         </span>
         {isMax && (
           <Star
-            size={16}
+            size={20}
             className="text-bk-orange fill-bk-orange"
             aria-label="皆中"
           />
@@ -252,7 +253,9 @@ export default function ScoreList({
     status: string | null | undefined,
   ) => {
     const orderDisplay = order ? (
-      <span className="text-lg font-pop font-black text-bk-brown">{order}</span>
+      <span className="text-2xl font-pop font-black text-bk-brown">
+        {order}
+      </span>
     ) : (
       <span className="text-gray-400">-</span>
     );
@@ -260,7 +263,7 @@ export default function ScoreList({
       return (
         <div className="flex flex-col items-center">
           {orderDisplay}
-          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-bk-red text-white text-[10px] font-bold border-2 border-bk-brown animate-pulse whitespace-nowrap">
+          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-bk-red text-white text-xs font-bold border-2 border-bk-brown animate-pulse whitespace-nowrap">
             行射中
           </span>
         </div>
@@ -270,7 +273,7 @@ export default function ScoreList({
       return (
         <div className="flex flex-col items-center">
           {orderDisplay}
-          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold border-2 border-blue-800 whitespace-nowrap">
+          <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-bold border-2 border-blue-800 whitespace-nowrap">
             控え
           </span>
         </div>
@@ -487,7 +490,7 @@ export default function ScoreList({
           `}</style>
           <div className="poyon flex flex-col items-center">
             <Image
-              src="/images/matomentaiko.png"
+              src="/images/mitarashi.png"
               alt="Opening Animation"
               width={200}
               height={200}
@@ -502,15 +505,12 @@ export default function ScoreList({
       <div className="max-w-3xl mx-auto pb-10 font-sans text-bk-brown relative">
         <div className="mb-6 space-y-3 px-1">
           {settings?.show_phase !== false && settings?.current_phase && (
-            <div className={phaseInfo?.className}>
+            <div className={phaseInfo.className}>
               <span className="font-bold text-sm flex items-center">
-                <Activity
-                  size={20}
-                  className={`mr-2 ${phaseInfo?.iconClass}`}
-                />
+                <Activity size={20} className={`mr-2 ${phaseInfo.iconClass}`} />
                 現在の状況:{' '}
                 <span className="ml-2 text-lg font-black">
-                  {phaseInfo?.label}
+                  {phaseInfo.label}
                 </span>
               </span>
             </div>
@@ -585,7 +585,7 @@ export default function ScoreList({
           >
             {[
               { id: 'order_list', label: '立順表' },
-              { id: 'am1', label: '午前' },
+              { id: 'am1', label: '午前1' },
               { id: 'am2', label: '午後1' },
               { id: 'pm1', label: '午後2' },
               { id: 'total', label: '総合' },
@@ -651,8 +651,7 @@ export default function ScoreList({
                             <th className="px-4 py-3 text-left">名称</th>
                             <th className="px-2 py-3">人数</th>
                             <th className="px-2 py-3">午前</th>
-                            <th className="px-2 py-3">午後１</th>
-                            <th className="px-2 py-3">午後２</th>
+                            <th className="px-2 py-3">午後2</th>
                             <th className="px-2 py-3 bg-bk-orange/20 text-bk-brown font-black">
                               平均
                             </th>
@@ -869,8 +868,8 @@ export default function ScoreList({
                             </div>
                             <div className="flex bg-bk-beige/30">
                               <div className="flex-1 py-3 flex flex-col items-center justify-center border-r-2 border-bk-brown/10">
-                                <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
-                                  <ListOrdered size={14} className="mr-1" />
+                                <div className="flex items-center text-sm text-gray-500 font-bold mb-1">
+                                  <ListOrdered size={16} className="mr-1" />
                                   <span>立順</span>
                                 </div>
                                 <div>
@@ -878,8 +877,8 @@ export default function ScoreList({
                                 </div>
                               </div>
                               <div className="flex-1 py-3 flex flex-col items-center justify-center">
-                                <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
-                                  <Target size={14} className="mr-1" />
+                                <div className="flex items-center text-sm text-gray-500 font-bold mb-1">
+                                  <Target size={16} className="mr-1" />
                                   <span>的中</span>
                                 </div>
                                 <div className="text-xl font-pop font-black text-bk-brown">
@@ -910,32 +909,28 @@ export default function ScoreList({
                               </div>
                             </div>
                           </div>
+                          {/* 修正箇所：予選スコアのラベル拡大 */}
                           <div className="flex border-b-2 border-bk-brown/10 bg-white divide-x-2 divide-bk-brown/10">
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
-                              <span className="text-[10px] text-gray-400 font-bold mb-0.5">
+                              <span className="text-xs font-black text-gray-400 mb-1">
                                 午前
                               </span>
-                              <span className="text-sm font-bold">
-                                {renderScore(player.score_am1, 2)}
-                              </span>
+                              {renderScore(player.score_am1, 2)}
                             </div>
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
-                              <span className="text-[10px] text-gray-400 font-bold mb-0.5">
-                                午後1
+                              <span className="text-xs font-black text-gray-400 mb-1">
+                                午後１
                               </span>
-                              <span className="text-sm font-bold">
-                                {renderScore(player.score_am2, 2)}
-                              </span>
+                              {renderScore(player.score_am2, 2)}
                             </div>
                             <div className="flex-1 py-2 flex flex-col items-center justify-center">
-                              <span className="text-[10px] text-gray-400 font-bold mb-0.5">
-                                午後2
+                              <span className="text-xs font-black text-gray-400 mb-1">
+                                午後２
                               </span>
-                              <span className="text-sm font-bold">
-                                {renderScore(player.score_pm1, 4)}
-                              </span>
+                              {renderScore(player.score_pm1, 4)}
                             </div>
                           </div>
+
                           <div className="flex border-b-2 border-bk-brown/10 bg-bk-beige/30">
                             <div className="flex-1 py-3 flex flex-col items-center justify-center border-r-2 border-bk-brown/10">
                               <div className="flex items-center text-xs text-gray-500 font-bold mb-1">
@@ -955,17 +950,17 @@ export default function ScoreList({
                                 <span>暫定順位</span>
                               </div>
                               <div className="flex items-center justify-center">
-                                <span className="text-2xl font-pop font-black text-bk-brown mr-2">
-                                  {player.provisional_ranking
-                                    ? `${player.provisional_ranking}`
-                                    : '-'}
-                                </span>
-                                {player.provisional_ranking && (
-                                  <div className="flex items-center justify-center w-6 h-6 bg-bk-green rounded-full text-white shadow-sm border border-bk-brown">
-                                    <span className="text-[10px] font-black">
+                                {/* テキストの数字表示を削除し、データがある場合はバッジのみ表示、ない場合はハイフンを表示 */}
+                                {player.provisional_ranking ? (
+                                  <div className="flex items-center justify-center w-8 h-8 bg-bk-green rounded-full text-white shadow-sm border-2 border-bk-brown">
+                                    <span className="text-sm font-black">
                                       {player.provisional_ranking}
                                     </span>
                                   </div>
+                                ) : (
+                                  <span className="text-2xl font-pop font-black text-gray-400">
+                                    -
+                                  </span>
                                 )}
                               </div>
                             </div>
