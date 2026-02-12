@@ -490,7 +490,7 @@ export default function ScoreList({
           `}</style>
           <div className="poyon flex flex-col items-center">
             <Image
-              src="/images/mitarashi.png"
+              src="/images/matomentaiko.png"
               alt="Opening Animation"
               width={200}
               height={200}
