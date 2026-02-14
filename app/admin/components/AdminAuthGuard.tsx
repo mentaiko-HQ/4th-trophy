@@ -26,6 +26,13 @@ export default function AdminAuthGuard({
     const correctId = process.env.NEXT_PUBLIC_ADMIN_ID || 'admin';
     const correctPass = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'password';
 
+    // ▼▼▼ この2行を追加して確認する ▼▼▼
+    console.log('入力されたID:', inputId);
+    console.log('正解のID:', correctId);
+    console.log('入力されたPASS:', inputPass);
+    console.log('正解のPASS:', correctPass);
+    // ▲▲▲▲▲▲
+
     if (inputId === correctId && inputPass === correctPass) {
       setIsAuthenticated(true);
       sessionStorage.setItem('admin_auth', 'true');
