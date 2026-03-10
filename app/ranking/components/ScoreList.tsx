@@ -14,16 +14,7 @@ import Image from 'next/image';
 // 型定義
 // ------------------------------------------------------------------
 
-export interface TournamentSettings {
-  id: string; // uuidのためstring型
-  current_phase: 'preparing' | 'qualifier' | 'tally' | 'final' | 'finished';
-  announcement: string | null;
-  individual_prize_count: number;
-  team_prize_count: number;
-  show_phase?: boolean;
-  show_announcement?: boolean;
-  show_playoff_players?: boolean;
-}
+import { TournamentSettings } from '@/types/tournament';
 
 export interface PlayerData {
   id: string;

@@ -3,11 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, LogIn } from 'lucide-react';
 
-export default function AdminAuthGuard({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminAuthGuard({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [inputId, setId] = useState('');
   const [inputPass, setPass] = useState('');
@@ -16,13 +12,14 @@ export default function AdminAuthGuard({
   useEffect(() => {
     const session = sessionStorage.getItem('admin_auth');
     if (session === 'true') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAuthenticated(true);
     }
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     const correctId = process.env.NEXT_PUBLIC_ADMIN_ID || 'admin';
     const correctPass = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'password';
 
@@ -46,21 +43,15 @@ export default function AdminAuthGuard({
           <div className="inline-flex items-center justify-center w-20 h-20 bg-bk-orange rounded-full mb-4 border-4 border-bk-brown shadow-sm">
             <Lock className="w-10 h-10 text-bk-brown" strokeWidth={3} />
           </div>
-          <h2 className="text-3xl font-black text-bk-brown font-pop uppercase tracking-tight">
-            ADMIN LOGIN
-          </h2>
+          <h2 className="text-3xl font-black text-bk-brown font-pop uppercase tracking-tight">ADMIN LOGIN</h2>
           <p className="text-sm font-bold text-gray-500 mt-2">
-            管理画面へアクセスするには
-            <br />
-            IDとパスワードを入力してください。
+            管理画面へアクセスするには<br />IDとパスワードを入力してください。
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-sm font-black text-bk-brown mb-2 ml-1">
-              ID
-            </label>
+            <label className="block text-sm font-black text-bk-brown mb-2 ml-1">ID</label>
             <input
               type="text"
               value={inputId}
@@ -69,11 +60,9 @@ export default function AdminAuthGuard({
               placeholder="Admin ID"
             />
           </div>
-
+          
           <div>
-            <label className="block text-sm font-black text-bk-brown mb-2 ml-1">
-              PASSWORD
-            </label>
+            <label className="block text-sm font-black text-bk-brown mb-2 ml-1">PASSWORD</label>
             <input
               type="password"
               value={inputPass}
