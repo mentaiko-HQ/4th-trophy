@@ -15,6 +15,7 @@ import Image from 'next/image';
 // ------------------------------------------------------------------
 
 export interface TournamentSettings {
+  id: string; // uuidのためstring型
   current_phase: 'preparing' | 'qualifier' | 'tally' | 'final' | 'finished';
   announcement: string | null;
   individual_prize_count: number;

@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import AdminPanel from './components/AdminPanel';
 import AdminAuthGuard from './components/AdminAuthGuard';
 import type { Metadata } from 'next';
+import { PlayerEntry, TournamentSettings } from '@/types/tournament';
 
 export const metadata: Metadata = {
   title: '大会管理画面',
@@ -9,8 +10,8 @@ export const metadata: Metadata = {
 
 // データの型定義
 export interface AdminData {
-  players: any[];
-  settings: any;
+  players: PlayerEntry[];
+  settings: TournamentSettings;
 }
 
 export default async function AdminPage() {
