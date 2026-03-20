@@ -380,8 +380,8 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
             {[
               { id: 'order_list', label: '立順表' },
               { id: 'am1', label: '午前1' },
-              { id: 'am2', label: '午前2' },
-              { id: 'pm1', label: '午後1' },
+              { id: 'am2', label: '午後1' },
+              { id: 'pm1', label: '午後2' },
               { id: 'total', label: '総合' },
               { id: 'reference', label: '参考' }
             ].map(tab => (
@@ -484,9 +484,11 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
               <div key={groupIndex} className={isGroupedView ? "mb-8 relative" : ""}>
                   {/* 区切り線（グループ表示時） */}
                   {isGroupedView && (
-                    <div className="absolute -top-4 left-0 right-0 flex items-center justify-center">
-                       <div className="bg-bk-beige px-3 text-xs font-black text-bk-brown/30">GROUP {groupIndex + 1}</div>
-                    </div>
+                    <div className="absolute -top-4 left-0 right-0 flex items-center justify-center z-20">
+  <div className="bg-bk-beige px-3 py-1 text-sm font-black text-bk-brown/30 rounded-xl border-2 border-bk-brown/30">
+    立G {groupIndex + 1}
+  </div>
+</div>
                   )}
                   
                   <div className="space-y-4">
