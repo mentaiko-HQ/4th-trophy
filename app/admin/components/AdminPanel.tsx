@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase'; // 環境に合わせてパスを調整してください
 import { TournamentSettings, PlayerEntry } from '@/types/tournament';
-import { Search, UserX, AlertTriangle } from 'lucide-react';
+import { Search, UserX, AlertTriangle, Trash2, Upload, FileText } from 'lucide-react';
 
 interface AdminPanelProps {
   initialPlayers: PlayerEntry[];
@@ -17,6 +17,7 @@ export default function AdminPanel({ initialPlayers, initialSettings }: AdminPan
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // サーバーからの更新を受け取るためのエフェクト
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function AdminPanel({ initialPlayers, initialSettings }: AdminPan
         show_announcement: settings.show_announcement,
         show_playoff_players: settings.show_playoff_players,
       })
-      .eq('id', settings.id); // 型定義にidを追加したため、そのまま参照可能
+      .eq('id', settings.id);
 
     setIsSaving(false);
     if (error) {
@@ -70,6 +71,71 @@ export default function AdminPanel({ initialPlayers, initialSettings }: AdminPan
     } catch (error) {
       console.error('Error:', error);
       alert('処理に失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // CSVインポート
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      try {
+        setIsSaving(true);
+        // 改行コード(\r\n, \n)に対応して分割
+        const rows = text.split(/\r?\n/).map(row => row.trim()).filter(row => row);
+        const headers = rows[0].split(',').map(h => h.trim());
+        
+        const requiredColumns = ['bib_number', 'player_name', 'team_name'];
+        const missing = requiredColumns.filter(col => !headers.includes(col));
+        if (missing.length > 0) throw new Error(`必須カラム不足: ${missing.join(', ')}`);
+
+        const jsonData = rows.slice(1).map(row => {
+          const values = row.split(',').map(v => v.trim());
+          const obj: Record<string, string | null> = {};
+          headers.forEach((header, index) => { obj[header] = values[index] || null; });
+          return obj;
+        });
+
+        const { error } = await supabase.rpc('import_tournament_data', { data: jsonData });
+        if (error) throw error;
+
+        alert(`${jsonData.length}件インポートしました。`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        router.refresh();
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          alert(`インポート失敗: ${error.message}`);
+        } else {
+          alert(`インポート失敗: 予期せぬエラーが発生しました`);
+        }
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // データリセット (全削除)
+  const handleResetData = async () => {
+    if (!window.confirm('【警告】全てのデータを完全に削除します。\n実行前にバックアップ(エクスポート)を推奨します。\n本当によろしいですか？')) return;
+    if (!window.confirm('【最終確認】この操作は取り消せません。実行しますか？')) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('reset_tournament_data');
+      if (error) throw error;
+      alert('データをリセットしました。');
+      router.refresh();
+    } catch (error) {
+      console.error('Reset error:', error);
+      alert('リセットに失敗しました');
     } finally {
       setIsSaving(false);
     }
@@ -271,6 +337,70 @@ export default function AdminPanel({ initialPlayers, initialSettings }: AdminPan
           </table>
         </div>
       </div>
+
+      {/* =================================================================
+         データ管理 (CSVインポート)
+         ================================================================= */}
+      <div className="bg-white shadow-md rounded-lg p-6">
+        <h2 className="text-2xl font-bold mb-6 flex items-center">
+          <Upload className="mr-2" size={24} />
+          データインポート (CSV)
+        </h2>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+          <div className="flex items-start">
+            <FileText className="text-blue-600 mr-2 mt-0.5 shrink-0" size={20} />
+            <div className="text-sm text-blue-900">
+              <p className="font-bold mb-1">CSVフォーマット要件 (1行目は以下のヘッダが必要です)</p>
+              <code className="block bg-white p-2 rounded border border-blue-200 font-mono text-xs break-all">
+                bib_number, player_name, team_name, dan_rank, carriage, order_am1, order_am2, order_pm1
+              </code>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center w-full">
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+              <Upload className="w-8 h-8 mb-3 text-gray-400" />
+              <p className="mb-1 text-sm text-gray-500 font-medium">クリックしてCSVファイルをアップロード</p>
+            </div>
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              className="hidden" 
+              accept=".csv"
+              onChange={handleFileUpload}
+              disabled={isSaving}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* =================================================================
+         データ管理 (Danger Zone)
+         ================================================================= */}
+      <div className="bg-white shadow-md rounded-lg p-6 border-l-4 border-red-500">
+        <h2 className="text-2xl font-bold text-red-600 mb-4 flex items-center">
+          <AlertTriangle className="mr-2" size={24} />
+          Danger Zone (データ初期化)
+        </h2>
+        <p className="text-sm text-gray-600 mb-6">
+          現在登録されている大会の全データ（参加者、チーム、エントリー情報、成績など）を完全に削除します。
+          この操作は取り消すことができません。
+        </p>
+        <button
+          onClick={handleResetData}
+          disabled={isSaving}
+          className={`flex items-center justify-center w-full sm:w-auto py-3 px-6 rounded-md text-white font-bold transition-colors ${
+            isSaving ? 'bg-red-300' : 'bg-red-600 hover:bg-red-700'
+          }`}
+        >
+          <Trash2 className="mr-2" size={20} />
+          {isSaving ? '処理中...' : '全データを完全に削除する'}
+        </button>
+      </div>
+
     </div>
   );
 }
