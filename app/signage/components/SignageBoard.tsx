@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 import { Settings, RefreshCw, Loader2, Target, Users } from 'lucide-react';
 
 // 表示するデータの型
@@ -14,8 +15,18 @@ type SignagePlayer = {
   status: string;
 };
 
+type EntryData = {
+  id: string;
+  bib_number: string;
+  participants: {
+    name: string;
+    teams: { name: string } | null;
+  } | null;
+} & Record<string, string | number | null>;
+
 export default function SignageBoard() {
   const supabase = createClient();
+  const router = useRouter();
   const [currentTab, setCurrentTab] = useState<'am1' | 'am2' | 'pm1'>('am1');
   const [shootingPlayers, setShootingPlayers] = useState<SignagePlayer[]>([]);
   const [calledPlayers, setCalledPlayers] = useState<SignagePlayer[]>([]);
@@ -40,7 +51,7 @@ export default function SignageBoard() {
             name,
             teams ( name )
           )
-        `,
+        `
         )
         .neq('is_absent', true)
         .in(statusCol, ['shooting', 'called'])
@@ -48,13 +59,13 @@ export default function SignageBoard() {
 
       if (error) throw error;
 
-      const players: SignagePlayer[] = (entries || []).map((entry: any) => ({
+      const players: SignagePlayer[] = ((entries as unknown as EntryData[]) || []).map((entry: EntryData) => ({
         id: entry.id,
         bib_number: entry.bib_number,
         player_name: entry.participants?.name || '不明',
         team_name: entry.participants?.teams?.name || '',
-        order: entry[orderCol],
-        status: entry[statusCol],
+        order: Number(entry[orderCol]),
+        status: String(entry[statusCol]),
       }));
 
       setShootingPlayers(players.filter((p) => p.status === 'shooting'));
@@ -78,22 +89,23 @@ export default function SignageBoard() {
         { event: '*', schema: 'public', table: 'entries' },
         () => {
           fetchData();
-        },
+          router.refresh();
+        }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchData, supabase]);
+  }, [fetchData, supabase, router]);
 
   const toggleSettings = () => setShowSettings(!showSettings);
 
   return (
     <div className="min-h-screen font-sans overflow-hidden flex flex-col relative bg-bk-beige text-bk-brown">
       {/* ============================================================
-          上段: 行射中 (Shooting)
-          背景: 薄い赤、ヘッダー: 赤
+         上段: 行射中 (Shooting)
+         背景: 薄い赤、ヘッダー: 赤
          ============================================================ */}
       <div className="flex-1 flex flex-col border-b-8 border-bk-brown bg-[#FFF5F5]">
         <div className="bg-bk-red px-8 py-4 flex justify-between items-center shadow-md border-b-4 border-bk-brown shrink-0">
@@ -125,8 +137,8 @@ export default function SignageBoard() {
       </div>
 
       {/* ============================================================
-          下段: 呼出/控え (Called)
-          背景: 薄い緑、ヘッダー: 緑
+         下段: 呼出/控え (Called)
+         背景: 薄い緑、ヘッダー: 緑
          ============================================================ */}
       <div className="flex-1 flex flex-col bg-[#F0FFF4]">
         <div className="bg-bk-green px-8 py-4 flex justify-between items-center shadow-md border-y-4 border-bk-brown shrink-0">
@@ -158,7 +170,7 @@ export default function SignageBoard() {
       </div>
 
       {/* ============================================================
-          フッター・設定エリア
+         フッター・設定エリア
          ============================================================ */}
       <div className="absolute bottom-6 right-6 flex items-center gap-4 z-50">
         <div className="bg-bk-brown text-bk-beige text-sm font-bold px-3 py-1.5 rounded-full border-2 border-white shadow-lg font-pop">
@@ -205,7 +217,10 @@ export default function SignageBoard() {
               </div>
             </div>
             <button
-              onClick={fetchData}
+              onClick={() => {
+                fetchData();
+                router.refresh();
+              }}
               className="mt-6 w-full flex items-center justify-center py-3 bg-bk-brown hover:bg-[#3a190f] rounded-xl text-sm font-black text-white shadow-sm active:scale-95 transition-all"
             >
               <RefreshCw size={16} className="mr-2" />
