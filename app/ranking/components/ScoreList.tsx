@@ -379,7 +379,7 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
           <div ref={tabsListRef} onScroll={checkScroll} className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth relative px-1 pb-2">
             {[
               { id: 'order_list', label: '立順表' },
-              { id: 'am1', label: '午前1' },
+              { id: 'am1', label: '午前' },
               { id: 'am2', label: '午後1' },
               { id: 'pm1', label: '午後2' },
               { id: 'total', label: '総合' },
@@ -590,9 +590,9 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
               <section>
                 <h4 className="font-black text-bk-red text-lg border-b-2 border-bk-brown/20 pb-1 mb-3">DISPLAY</h4>
                 <ul className="space-y-3">
-                  <li className="flex items-start"><span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span><span><span className="font-bold text-bk-red">ORDER LIST:</span> ID（ゼッケン）順に表示されます。</span></li>
-                  <li className="flex items-start"><span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span><span><span className="font-bold text-bk-red">AM/PM ROUNDS:</span> 立順（射位順）の昇順で表示されます。</span></li>
-                  <li className="flex items-start"><span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span><span><span className="font-bold text-bk-red">TOTAL RANKING:</span> 合計的中数が多い順に表示されます。</span></li>
+                  <li className="flex items-start"><span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span><span><span className="font-bold text-bk-red">立順表タブ:</span> ID（ゼッケン）順に表示されます。</span></li>
+                  <li className="flex items-start"><span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span><span><span className="font-bold text-bk-red">午前、午後１、午後２タブ:</span> 立順の昇順で表示されます。</span></li>
+                  <li className="flex items-start"><span className="inline-block w-3 h-3 bg-bk-brown rounded-full mt-1.5 mr-3 shrink-0"></span><span><span className="font-bold text-bk-red">総合タブ:</span> 合計的中数が多い順に表示されます。</span></li>
                 </ul>
               </section>
               <section><h4 className="font-black text-bk-red text-lg border-b-2 border-bk-brown/20 pb-1 mb-3">HOW TO USE</h4><div className="bg-bk-beige p-4 rounded-xl border-2 border-bk-brown"><p className="mb-2"><span className="font-black">FILTER:</span></p><p>ボタンを押すと検索バーが表示され、選手名や所属で絞り込みが可能です。</p></div></section>
