@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase'; // 環境に合わせてパスを調整してください
 import { TournamentSettings, PlayerEntry } from '@/types/tournament';
-import { Search, UserX, AlertTriangle, Trash2, Upload, FileText } from 'lucide-react';
+import { Search, UserX, AlertTriangle, Trash2, Upload, FileText, RotateCcw } from 'lucide-react';
 
 interface AdminPanelProps {
   initialPlayers: PlayerEntry[];
@@ -120,6 +120,42 @@ export default function AdminPanel({ initialPlayers, initialSettings }: AdminPan
       }
     };
     reader.readAsText(file);
+  };
+
+  // 成績データのみリセット
+  const handleResetScores = async () => {
+    if (!window.confirm('【警告】すべての成績データ（的中数、順位など）をクリアします。\nよろしいですか？')) return;
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('reset_scores_only');
+      if (error) throw error;
+      alert('成績データをクリアしました。');
+      router.refresh();
+    } catch (error) {
+      console.error('Reset scores error:', error);
+      alert('成績のクリアに失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 進行状況のみリセット
+  const handleResetStatuses = async () => {
+    if (!window.confirm('【警告】すべての進行状況（待機・呼出・行射など）を「待機」にリセットします。\nよろしいですか？')) return;
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.rpc('reset_statuses_only');
+      if (error) throw error;
+      alert('進行状況をリセットしました。');
+      router.refresh();
+    } catch (error) {
+      console.error('Reset statuses error:', error);
+      alert('進行状況のリセットに失敗しました');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // データリセット (全削除)
@@ -385,20 +421,54 @@ export default function AdminPanel({ initialPlayers, initialSettings }: AdminPan
           <AlertTriangle className="mr-2" size={24} />
           Danger Zone (データ初期化)
         </h2>
-        <p className="text-sm text-gray-600 mb-6">
-          現在登録されている大会の全データ（参加者、チーム、エントリー情報、成績など）を完全に削除します。
-          この操作は取り消すことができません。
-        </p>
-        <button
-          onClick={handleResetData}
-          disabled={isSaving}
-          className={`flex items-center justify-center w-full sm:w-auto py-3 px-6 rounded-md text-white font-bold transition-colors ${
-            isSaving ? 'bg-red-300' : 'bg-red-600 hover:bg-red-700'
-          }`}
-        >
-          <Trash2 className="mr-2" size={20} />
-          {isSaving ? '処理中...' : '全データを完全に削除する'}
-        </button>
+        
+        <div className="space-y-4">
+          <div className="p-4 border-2 border-red-200 rounded-lg bg-red-50">
+            <h3 className="font-bold text-red-800 mb-2">成績・進行状況のクリア</h3>
+            <p className="text-sm text-red-600 mb-4">
+              登録されている選手やチーム情報は残したまま、成績や進行状況のみをリセットします。
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleResetStatuses}
+                disabled={isSaving}
+                className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-white font-bold transition-colors ${
+                  isSaving ? 'bg-red-300' : 'bg-red-500 hover:bg-red-600'
+                }`}
+              >
+                <RotateCcw className="mr-2" size={18} />
+                進行状況をリセット
+              </button>
+              <button
+                onClick={handleResetScores}
+                disabled={isSaving}
+                className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-white font-bold transition-colors ${
+                  isSaving ? 'bg-red-300' : 'bg-red-500 hover:bg-red-600'
+                }`}
+              >
+                <RotateCcw className="mr-2" size={18} />
+                成績データをクリア
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 border-2 border-red-300 rounded-lg bg-red-100">
+            <h3 className="font-bold text-red-900 mb-2">全データの完全削除</h3>
+            <p className="text-sm text-red-700 mb-4">
+              現在登録されている大会の全データ（参加者、チーム、エントリー情報、成績など）を完全に削除します。この操作は取り消すことができません。
+            </p>
+            <button
+              onClick={handleResetData}
+              disabled={isSaving}
+              className={`flex items-center justify-center w-full sm:w-auto py-3 px-6 rounded-md text-white font-bold transition-colors ${
+                isSaving ? 'bg-red-400' : 'bg-red-700 hover:bg-red-800'
+              }`}
+            >
+              <Trash2 className="mr-2" size={20} />
+              {isSaving ? '処理中...' : '全データを完全に削除する'}
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
