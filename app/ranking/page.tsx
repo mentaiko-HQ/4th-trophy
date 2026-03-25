@@ -2,8 +2,38 @@ import { createClient } from '@/utils/supabase/server';
 import ScoreList, { PlayerData } from './components/ScoreList';
 import type { Metadata } from 'next';
 
+// キャッシュを無効化し、常にサーバーから最新データを取得する設定
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: '成績閲覧',
+};
+
+type EntryData = {
+  id: string;
+  bib_number: string | number;
+  order_am1: number | null;
+  order_am2: number | null;
+  order_pm1: number | null;
+  status_am1: string | null;
+  status_am2: string | null;
+  status_pm1: string | null;
+  score_am1: number | null;
+  score_am2: number | null;
+  score_pm1: number | null;
+  total_score: number | null;
+  provisional_ranking: number | null;
+  final_ranking: number | null;
+  prev_ranking: number | null;
+  playoff_type: 'izume' | 'enkin' | null;
+  semifinal_score: number | null;
+  semifinal_results: number | null;
+  participants: {
+    name: string;
+    dan_rank: string | null;
+    carriage: string | null;
+    teams: { name: string } | null;
+  } | null;
 };
 
 export default async function RankingPage() {
@@ -62,8 +92,8 @@ export default async function RankingPage() {
   let sameProvRankCount = 0;
   let prevScore: number | null = null;
 
-  const players: PlayerData[] = (entries || []).map(
-    (entry: any, index: number) => {
+  const players: PlayerData[] = ((entries as unknown as EntryData[]) || []).map(
+    (entry: EntryData, index: number) => {
       const playerName = entry.participants?.name ?? '不明な選手';
       const teamName = entry.participants?.teams?.name ?? '所属なし';
       const danRank = entry.participants?.dan_rank;
