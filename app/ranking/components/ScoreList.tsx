@@ -49,6 +49,8 @@ interface ScoreListProps {
 
 type SortKey = 'bib_number' | 'player_name' | 'order_am1' | 'order_am2' | 'order_pm1';
 
+type TabType = 'order_list' | 'total' | 'am1' | 'am2' | 'pm1' | 'reference';
+
 // ------------------------------------------------------------------
 // コンポーネント実装
 // ------------------------------------------------------------------
@@ -57,7 +59,7 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
   const router = useRouter();
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState<'order_list' | 'total' | 'am1' | 'am2' | 'pm1' | 'reference'>('order_list');
+  const [activeTab, setActiveTab] = useState<TabType>('order_list');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showHelp, setShowHelp] = useState(false);
@@ -98,6 +100,13 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
+    
+    // セッションストレージから前回選択していたタブを復元
+    const savedTab = sessionStorage.getItem('activeTab_ranking');
+    if (savedTab) {
+      setActiveTab(savedTab as TabType);
+    }
+
     const hasSeen = sessionStorage.getItem('hasSeenRankingOpening');
     
     if (!hasSeen) {
@@ -121,6 +130,11 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
   }, []);
+
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    sessionStorage.setItem('activeTab_ranking', tabId);
+  };
 
   const safePlayers = useMemo(() => Array.isArray(players) ? players : [], [players]);
   const safePlayoffPlayers = useMemo(() => Array.isArray(playoffPlayers) ? playoffPlayers : [], [playoffPlayers]);
@@ -388,8 +402,7 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
               <button
                 key={tab.id}
                 data-tab={tab.id}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => handleTabChange(tab.id as TabType)}
                 className={`
                   flex-shrink-0 min-w-20 py-2 px-4 text-sm font-black rounded-full border-2 transition-all duration-200 whitespace-nowrap
                   ${activeTab === tab.id
