@@ -263,7 +263,7 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
     return groups;
   };
 
-  const isGroupedView = activeTab !== 'total' && activeTab !== 'reference';
+  const isGroupedView = activeTab === 'am1' || activeTab === 'am2' || activeTab === 'pm1';
   const playerGroups = isGroupedView ? createPlayerGroups(filteredPlayers) : [filteredPlayers];
 
   const calculateReferenceStats = (key: 'team_name' | 'dan_rank' | 'carriage') => {
@@ -485,10 +485,10 @@ export default function ScoreList({ players = [], settings, playoffPlayers = [] 
                   {/* 区切り線（グループ表示時） */}
                   {isGroupedView && (
                     <div className="absolute -top-4 left-0 right-0 flex items-center justify-center z-20">
-  <div className="bg-bk-beige px-3 py-1 text-sm font-black text-bk-brown/30 rounded-xl border-2 border-bk-brown/30">
-    立G {groupIndex + 1}
-  </div>
-</div>
+                      <div className="bg-bk-beige px-3 py-1 text-sm font-black text-bk-brown/30 rounded-xl border-2 border-bk-brown/30">
+                        立G {groupIndex + 1}
+                      </div>
+                    </div>
                   )}
                   
                   <div className="space-y-4">
