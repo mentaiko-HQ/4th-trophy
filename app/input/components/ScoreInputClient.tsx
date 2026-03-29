@@ -65,8 +65,9 @@ const ScoreInputModal = ({
     const initialScores: Record<string, number> = {};
     groupPlayers.forEach((p) => {
       let currentScore: number | null = null;
-      if (label === '午前1') currentScore = p.score_am1;
-      else if (label === '午前2') currentScore = p.score_am2;
+      // 修正: labelの判定を統一
+      if (label === '午前') currentScore = p.score_am1;
+      else if (label === '午後1') currentScore = p.score_am2;
       else if (label === '午後2') currentScore = p.score_pm1;
 
       if (currentScore !== null) {
@@ -95,8 +96,10 @@ const ScoreInputModal = ({
     try {
       const supabase = createClient();
       let targetColumn = '';
-      if (label === '午前1') targetColumn = 'score_am1';
-      else if (label === '午前2') targetColumn = 'score_am2';
+
+      // 修正: labelの判定を統一
+      if (label === '午前') targetColumn = 'score_am1';
+      else if (label === '午後1') targetColumn = 'score_am2';
       else if (label === '午後2') targetColumn = 'score_pm1';
 
       if (!targetColumn) throw new Error('保存先のカラムが特定できません');
@@ -155,9 +158,11 @@ const ScoreInputModal = ({
           >
             {groupPlayers.map((player) => {
               let orderNumber: number | null = null;
-              if (label === '午前1') orderNumber = player.order_am1;
-              else if (label === '午前2') orderNumber = player.order_am2;
-              else if (label === '午後1') orderNumber = player.order_pm1;
+
+              // 修正: labelの判定を統一
+              if (label === '午前') orderNumber = player.order_am1;
+              else if (label === '午後1') orderNumber = player.order_am2;
+              else if (label === '午後2') orderNumber = player.order_pm1;
 
               return (
                 <div
@@ -488,14 +493,16 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
   };
 
   const playerGroups = createPlayerGroups(optimisticPlayers);
-  let label = '午前1';
+
+  // 修正: labelの設定をUI表記に完全に統一
+  let label = '午前';
   let maxScore = 2;
   if (currentTab === 'am2') {
-    label = '午前2';
+    label = '午後1';
     maxScore = 2;
   }
   if (currentTab === 'pm1') {
-    label = '午後1';
+    label = '午後2';
     maxScore = 4;
   }
   if (currentTab === 'final') {
@@ -767,9 +774,10 @@ export default function ScoreInputClient({ players, currentTab }: Props) {
         <div className="space-y-4">
           {playerGroups.map((group, groupIndex) => {
             const filledCount = group.filter((p) => {
-              if (label === '午前1') return p.score_am1 !== null;
-              if (label === '午前2') return p.score_am2 !== null;
-              if (label === '午後1') return p.score_pm1 !== null;
+              // 修正: labelの判定を統一
+              if (label === '午前') return p.score_am1 !== null;
+              if (label === '午後1') return p.score_am2 !== null;
+              if (label === '午後2') return p.score_pm1 !== null;
               return false;
             }).length;
             const isComplete = filledCount === group.length;
